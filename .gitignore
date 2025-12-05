@@ -1,0 +1,6 @@
+#Ignore .exe executable files
+*.exe
+
+#Ignore .txt and log files since these are for testing.
+*.txt
+*.log
