@@ -31,6 +31,8 @@ type File struct {
   0 = no permission
 
 */
+
+//FIXME: 
 func OpenFile(fileName string) (File,error) {
 	file,err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644);
 
@@ -51,20 +53,23 @@ func OpenFile(fileName string) (File,error) {
 	return f, err;
 }
 
+
+
 func (f *File) WriteFile(){}
 
 func (f *File) ReadFile() ([]byte, error) {
 	//f, err := os.OpenFile(fileName,os.O_APPEND|os.O_CREATE,os.ModeAppend);
 	file := f.file;
 
-	currOffset,err := file.Seek(2, 0);
+	//We would change the number for seek to be the specific byte offset in the map from the file struct
+	_,err := file.Seek(0, 0);
 	if err != nil {
 		fmt.Println(err);
 		return nil, err;
 	}
-	fmt.Println(currOffset)
+	
 
-	b := make([]byte, 10);
+	b := make([]byte, f.size);
 
 	_,error := file.Read(b);
 
