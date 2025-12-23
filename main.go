@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
-	"time"
+	//"time"
 
-	"github.com/Vince-maple-byte/KeyData/internals/file"
+	// "github.com/Vince-maple-byte/KeyData/internals/file"
 
-	records "github.com/Vince-maple-byte/KeyData/internals/record"
+	//"github.com/Vince-maple-byte/KeyData/internals/record"
+
+	// "unsafe"
+
+	"github.com/Vince-maple-byte/KeyData/tests"
 )
 
 /*
@@ -36,54 +40,74 @@ func main() {
 	fmt.Print("Nice goals\n");
 	
 
-	f, err := file.OpenFile("./internals/file/init.txt");
+	// f, err := file.OpenFile("./internals/file/init.txt");
 
-	if(err != nil) {
-		fmt.Println(err);
-	} else {
+	// if(err != nil) {
+	// 	fmt.Println(err);
+	// }
+	// } else {
 
-		//Just checking if the CRC32 is working properly
-		b,_ := f.ReadFile();
-		t,_ := f.ReadFile();
-		fmt.Println(string(b));
-		fmt.Println(records.CheckSum(string(b)));
+	// 	//Just checking if the CRC32 is working properly
+	// 	b,_ := f.ReadFile();
+	// 	t,_ := f.ReadFile();
+	// 	fmt.Println(string(b));
+	// 	fmt.Println(records.CheckSum(string(b)));
 
-		var str string = "This is a text file.";
-		s := "This is a text file.";
+	// 	var str string = "This is a text file.";
+	// 	s := "This is a text file.";
 
-		fmt.Println(records.CheckSum(str));
-		fmt.Println(records.CheckSum(s));
+	// 	fmt.Println(records.CheckSum(str));
+	// 	fmt.Println(records.CheckSum(s));
 
-		if records.CheckSum(str) == records.CheckSum(s) {
-			fmt.Println("These checksums are equal: \n" + str + "\n" + s + "\n");
-		}
+	// 	if records.CheckSum(str) == records.CheckSum(s) {
+	// 		fmt.Println("These checksums are equal: \n" + str + "\n" + s + "\n");
+	// 	}
 
-		if records.CheckSum(string(t)) == records.CheckSum(string(b)) {
-			fmt.Println("These checksums are equal: \n" + string(b) + "\n" + string(t) + "\n");
-		}
+	// 	if records.CheckSum(string(t)) == records.CheckSum(string(b)) {
+	// 		fmt.Println("These checksums are equal: \n" + string(b) + "\n" + string(t) + "\n");
+	// 	}
 
-		fmt.Println(len((b)))
-	}
+	// 	fmt.Println(len((b)))
+	// }
 
 
 	//How we are going to make the timestamps
-	t := time.Now();
-	var buffer []byte;
-	buffer, err = t.AppendBinary(buffer);
-	if err != nil {
-		panic(err)
-	}
+	
+
+	// fmt.Println(buffer);
+	// fmt.Println(len(buffer));
+
+	// //fmt.Println("size of this in bytes",unsafe.Sizeof([]byte("This")));
+	// var parseTime time.Time;
+	// err = parseTime.UnmarshalBinary(buffer);
+	// if err != nil {
+	// 	panic(err);
+	// }
+
+	// fmt.Printf("t: %v\n", t);
+	// fmt.Printf("parseTime: %v\n", parseTime);
+	// fmt.Printf("equal: %v\n", parseTime.Equal(t));
 
 
-	fmt.Println(buffer);
+	// record,err := records.CreateRecord("a", "15348", "PUT");
 
-	var parseTime time.Time
-	err = parseTime.UnmarshalBinary(buffer[:])
-	if err != nil {
-		panic(err)
-	}
+	// if err != nil {
+	// 	panic(err);
+	// }
 
-	fmt.Printf("t: %v\n", t)
-	fmt.Printf("parseTime: %v\n", parseTime)
-	fmt.Printf("equal: %v\n", parseTime.Equal(t))
+	// var parseTime time.Time;
+	// err = parseTime.UnmarshalBinary(record[:15]);
+	// fmt.Println(record);
+
+	// if err != nil {
+	// 	panic(err);
+	// }
+
+	// fmt.Printf("Time: %v\n", parseTime);
+
+	
+	recordTests.TestRecordTimeStampsIsShownAndAddedCorrectly();
+
+	recordTests.TestRecordCheckSumIfAddedCorrectly();
+	
 }
