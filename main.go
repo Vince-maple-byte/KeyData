@@ -109,5 +109,15 @@ func main() {
 	recordTests.TestRecordTimeStampsIsShownAndAddedCorrectly();
 
 	recordTests.TestRecordCheckSumIfAddedCorrectly();
+
+	recordTests.TestRecordTombstoneIfAddedCorrectly();
+
+	recordTests.TestRecordIfKeySizeIsSavedCorrectly();
+	
+	recordTests.TestRecordIfPayloadSizeIsSavedCorrectly();
+	
+	recordTests.TestRecordIfKeyIsSavedCorrectly();
+
+	recordTests.TestRecordIfPayloadIsSavedCorrectly();
 	
 }

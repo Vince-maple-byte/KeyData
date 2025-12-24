@@ -59,7 +59,7 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	b = append(b, byte(Tombstone));
 
-	//We are adding the key size here
+	//We are adding the key size here remember that key size and value is uint32
 	keyBuff := []byte(key);
 	keySize := uint32(len(keyBuff));
 
