@@ -19,10 +19,17 @@ TODO:
 
 Make the Write method
 
-Make a method to structure the record that the user will type to the binary encoding that we want
-
 How the structure of the timestamp would look like
 Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
+
+How many bytes each element in the record is:
+time stamp: 8 bytes
+CRC32: 8 bytes
+Tombstone: 1 byte
+key size: 8 bytes
+payload size: 8 bytes
+key: (key size) bytes
+payload: (payload size) bytes
 
 Have it so that in the Write method after we are done adding the record into the file, make sure to add flush(), we update the index map with the key and byte offset
 

@@ -15,8 +15,6 @@ func TestRecordTimeStampsIsShownAndAddedCorrectly() {
 		panic(err);
 	}
 
-
-	
 	//var parseTime time.Time;
 	parseTime := time.Unix(0, int64(binary.BigEndian.Uint64(record[:8])));
 
