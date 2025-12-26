@@ -3,6 +3,8 @@ package file
 import (
 	"fmt"
 	"os"
+
+	records "github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 type File struct {
@@ -54,8 +56,23 @@ func OpenFile(fileName string) (File,error) {
 }
 
 
+//If we get -1 that means that the file was not successfully written.
+func (f *File) WriteFile(key, payload, operation string) (amountAdded int, err error){
+	var recordBytes []byte;
+	recordBytes,err = records.CreateRecord(key,payload,operation);
 
-func (f *File) WriteFile(){}
+	if err != nil {
+		return -1, err;
+	}
+
+	amountAdded,err = f.file.Write(recordBytes);
+
+	if err != nil {
+		return -1, err;
+	}
+
+	return amountAdded, nil;
+}
 
 func (f *File) ReadFile() ([]byte, error) {
 	//f, err := os.OpenFile(fileName,os.O_APPEND|os.O_CREATE,os.ModeAppend);
