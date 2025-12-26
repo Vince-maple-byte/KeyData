@@ -32,7 +32,7 @@ type File struct {
 
 */
 
-//FIXME: 
+//FIXME: We need to read from the entire file and update the map indexes
 func OpenFile(fileName string) (File,error) {
 	file,err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644);
 
@@ -72,9 +72,7 @@ func (f *File) ReadFile() ([]byte, error) {
 	b := make([]byte, f.size);
 
 	_,error := file.Read(b);
-
 	
-
 	if error != nil {
 		fmt.Println(error);
 		return nil, error;
