@@ -74,12 +74,15 @@ func (f *File) WriteFile(key, payload, operation string) (amountAdded int, err e
 	return amountAdded, nil;
 }
 
-func (f *File) ReadFile() ([]byte, error) {
+func (f *File) ReadFile(startingPoint int) ([]byte, error) {
+	if startingPoint < 0 {
+		panic("Incorrect starting point");
+	}
 	//f, err := os.OpenFile(fileName,os.O_APPEND|os.O_CREATE,os.ModeAppend);
 	file := f.file;
 
 	//We would change the number for seek to be the specific byte offset in the map from the file struct
-	_,err := file.Seek(0, 0);
+	_,err := file.Seek(int64(startingPoint), 0);
 	if err != nil {
 		fmt.Println(err);
 		return nil, err;
