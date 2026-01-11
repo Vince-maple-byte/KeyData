@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Vince-maple-byte/KeyData/internals/file"
+	records "github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 func TestReadFile(t *testing.T) {
@@ -49,6 +50,7 @@ func TestOpenFile(t *testing.T){
 			//When
 			f,err := file.OpenFile(test.fileName);
 
+			//Actual
 			if test.expectedErr && err == nil {
 				t.Errorf("Expected error, got nil");
 			}
@@ -69,9 +71,38 @@ func TestOpenFile(t *testing.T){
 				t.Errorf("expected file handle to be non-nil")
 			}
 
-			//Actual
+			
 		})
 		
 	}
+}
+
+func TestPopulateMap(t *testing.T){
+	record,_ := records.CreateRecord("foo","1","PUT");
+	tests := []struct{
+		testName string
+		ByteSlice []byte
+		expectedMap map[string]int64
+	}{
+		{
+			testName: "IfByteSliceIsEmpty",
+			ByteSlice: make([]byte,0),
+			expectedMap: make(map[string]int64),
+		},
+		{
+			testName: "IfByteSliceHasValues",
+			ByteSlice: record,
+			expectedMap: map[string]int64{"foo":1,"bar":2,"k1":3},
+		},
+	}
+
+	for _, test := range tests {
+		//When
+		m := file.PopulateMap(make([]byte,0));
+	}
+}
+
+func TestUpdateMap(t *testing.T){
+
 }
 
