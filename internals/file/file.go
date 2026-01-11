@@ -55,7 +55,6 @@ func OpenFile(fileName string) (File,error) {
 	return f, err;
 }
 
-
 //If we get -1 that means that the file was not successfully written.
 func (f *File) WriteFile(key, payload, operation string) (amountAdded int, err error){
 	var recordBytes []byte;

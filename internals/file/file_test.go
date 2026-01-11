@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestExample(t *testing.T) {
+func TestReadFile(t *testing.T) {
 	// Example test case
 	t.Run("SampleTest", func(t *testing.T) {
 		expected := 42
