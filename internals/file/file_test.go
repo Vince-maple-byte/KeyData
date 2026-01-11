@@ -98,11 +98,41 @@ func TestPopulateMap(t *testing.T){
 
 	for _, test := range tests {
 		//When
-		m := file.PopulateMap(make([]byte,0));
+		m := file.PopulateMap(test.ByteSlice);
+
+		if test.expectedMap != m {
+			t.Errorf("Map mismatch between expected %v and actual %v", test.expectedMap, m);
+		}
 	}
 }
 
 func TestUpdateMap(t *testing.T){
+	record,_ := records.CreateRecord("foo","1","PUT");
+	record2,_ := records.CreateRecord("foo","2","PUT");
+	tests := []struct{
+		testName string
+		ByteSlice []byte
+		expectedMap map[string]int64
+	}{
+		{
+			testName: "IfByteSliceIsEmpty",
+			ByteSlice: make([]byte,0),
+			expectedMap: make(map[string]int64),
+		},
+		{
+			testName: "IfByteSliceHasValues",
+			ByteSlice: record,
+			expectedMap: map[string]int64{"foo":1,"bar":2,"k1":3},
+		},
+	}
 
+	for _, test := range tests {
+		//When
+		m := file.UpdateMap(test.ByteSlice);
+
+		if test.expectedMap != m {
+			t.Errorf("Map mismatch between expected %v and actual %v", test.expectedMap, m);
+		}
+	}
 }
 
