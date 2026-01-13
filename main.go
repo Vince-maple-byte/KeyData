@@ -10,7 +10,7 @@ import (
 
 	// "unsafe"
 
-	"github.com/Vince-maple-byte/KeyData/tests"
+	recordTests "github.com/Vince-maple-byte/KeyData/tests"
 )
 
 /*
@@ -24,10 +24,10 @@ Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and
 
 How many bytes each element in the record is:
 time stamp: 8 bytes
-CRC32: 8 bytes
+CRC32: 4 bytes
 Tombstone: 1 byte
-key size: 8 bytes
-payload size: 8 bytes
+key size: 4 bytes
+payload size: 4 bytes
 key: (key size) bytes
 payload: (payload size) bytes
 

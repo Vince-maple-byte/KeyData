@@ -1,14 +1,17 @@
 package file
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
+
+	records "github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 type File struct {
-	file *os.File
-	size int64
-	index map[string]int64
+	File *os.File
+	Size int64
+	Index map[string]int64
 }
 
 /*This is how we are opening up the file, reading, and writing to the file
@@ -32,49 +35,124 @@ type File struct {
 
 */
 
-//FIXME: 
+//FIXME: We need to read from the entire file and update the map indexes
+//If the file doesn't exist we will just return an empty File object and an error code since we don't want the
+//program to stop running for an invalid file path. This would help us in the future when we accept network calls.
 func OpenFile(fileName string) (File,error) {
+	//Just created fileEmpty in here so that I can reuse it in other areas where an error can happen
+	fileEmpty := File{
+			File: nil,
+			Size: 0,
+			Index: nil,
+		}
 	file,err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644);
 
 	if err != nil {
-		panic(err.Error());		
+		return fileEmpty, err;		
 	}
 
-	fileInfo,_ := file.Stat();
+	fileInfo,err := file.Stat();
+
+	if err != nil {
+		return fileEmpty, err;
+	}
 
 	size := fileInfo.Size();
 
 	f := File{
-		file: file,
-		size: size,
-		index: make(map[string]int64),
+		File: file,
+		Size: size,
+		Index: make(map[string]int64),
 	}
+
+	fileContents,errf := f.ReadFile(0);
+
+	if errf != nil {
+		return fileEmpty, errf;
+	}
+
+	f.Index = PopulateMap(fileContents);
 
 	return f, err;
 }
 
+//Were are basically going to go through the entire file record by record decoding the each record
+//We are also going to checking the checksum for each record
+//And if we encounter an incorrect checksum we will stop from there 
+// TODO:(We need to figure out a mechanism to get rid of the all values starting from the invalid record to the end of the file. )
+//Potential solution: We can make a new file writing the values from the beginning until the records were valid and then just update the file struct to be only pointing to the valid log and deleting the old log
+//NOTE: The value part of the map is for the byte offset to locate the record
+//TODO: Check if it is the correct checksum
+func PopulateMap(fileContents []byte) map[string]int64 {
+	m := make(map[string]int64);
+	index := 0;
+
+	for index < len(fileContents) {
+		keySizeSection := index + 13;
+
+		if keySizeSection >= len(fileContents) {
+			break;
+		}
+
+		keySize := binary.BigEndian.Uint32(fileContents[keySizeSection:17+index]);
+
+		payloadSizeSection := index + 17;
+
+		if payloadSizeSection >= len(fileContents) {
+			break;
+		}
+
+		payloadSize := binary.BigEndian.Uint32(fileContents[payloadSizeSection:21+index]);
+
+		key := string(fileContents[index+21:int(keySize)+(index+21)]);
+
+		m[key] = int64(index);
+
+		//The length of the record will always be 21 + keySize + payloadSize
+		index += int(21 + keySize + payloadSize);
+	}
 
 
-func (f *File) WriteFile(){}
+	return m;
+}
 
-func (f *File) ReadFile() ([]byte, error) {
+//If we get -1 that means that the file was not successfully written.
+func (f *File) WriteFile(key, payload, operation string) (amountAdded int, err error){
+	var recordBytes []byte;
+	recordBytes,err = records.CreateRecord(key,payload,operation);
+
+	if err != nil {
+		return -1, err;
+	}
+
+	amountAdded,err = f.File.Write(recordBytes);
+
+	if err != nil {
+		return -1, err;
+	}
+
+	return amountAdded, nil;
+}
+
+func (f *File) ReadFile(startingPoint int) ([]byte, error) {
+	if startingPoint < 0 {
+		panic("Incorrect starting point");
+	}
 	//f, err := os.OpenFile(fileName,os.O_APPEND|os.O_CREATE,os.ModeAppend);
-	file := f.file;
+	file := f.File;
 
 	//We would change the number for seek to be the specific byte offset in the map from the file struct
-	_,err := file.Seek(0, 0);
+	_,err := file.Seek(int64(startingPoint), 0);
 	if err != nil {
 		fmt.Println(err);
 		return nil, err;
 	}
 	
 
-	b := make([]byte, f.size);
+	b := make([]byte, f.Size);
 
 	_,error := file.Read(b);
-
 	
-
 	if error != nil {
 		fmt.Println(error);
 		return nil, error;

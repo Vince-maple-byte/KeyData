@@ -1,10 +1,10 @@
 package records
 
 import (
+	"encoding/binary"
 	"errors"
 	"hash/crc32"
 	"time"
-	"encoding/binary"
 	//"fmt"
 )
 
@@ -21,10 +21,7 @@ func createTimeStamp() int64  {
 	return time.Now().UnixNano();
 } 
 
-
-
 //data == payload
-//FIXME: Make sure to finish with this function using this format 
 //Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
 func CreateRecord(key, payload, operation string) ([]byte, error) {
 	if key == "" {
@@ -85,3 +82,4 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	return b, nil;
 }
+
