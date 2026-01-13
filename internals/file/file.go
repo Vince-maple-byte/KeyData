@@ -1,6 +1,7 @@
 package file
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 
@@ -64,7 +65,55 @@ func OpenFile(fileName string) (File,error) {
 		Index: make(map[string]int64),
 	}
 
+	fileContents,errf := f.ReadFile(0);
+
+	if errf != nil {
+		return fileEmpty, errf;
+	}
+
+	f.Index = PopulateMap(fileContents);
+
 	return f, err;
+}
+
+//Were are basically going to go through the entire file record by record decoding the each record
+//We are also going to checking the checksum for each record
+//And if we encounter an incorrect checksum we will stop from there 
+// TODO:(We need to figure out a mechanism to get rid of the all values starting from the invalid record to the end of the file. )
+//Potential solution: We can make a new file writing the values from the beginning until the records were valid and then just update the file struct to be only pointing to the valid log and deleting the old log
+//NOTE: The value part of the map is for the byte offset to locate the record
+//TODO: Check if it is the correct checksum
+func PopulateMap(fileContents []byte) map[string]int64 {
+	m := make(map[string]int64);
+	index := 0;
+
+	for index < len(fileContents) {
+		keySizeSection := index + 13;
+
+		if keySizeSection >= len(fileContents) {
+			break;
+		}
+
+		keySize := binary.BigEndian.Uint32(fileContents[keySizeSection:17+index]);
+
+		payloadSizeSection := index + 17;
+
+		if payloadSizeSection >= len(fileContents) {
+			break;
+		}
+
+		payloadSize := binary.BigEndian.Uint32(fileContents[payloadSizeSection:21+index]);
+
+		key := string(fileContents[index+21:int(keySize)+(index+21)]);
+
+		m[key] = int64(index);
+
+		//The length of the record will always be 21 + keySize + payloadSize
+		index += int(21 + keySize + payloadSize);
+	}
+
+
+	return m;
 }
 
 //If we get -1 that means that the file was not successfully written.

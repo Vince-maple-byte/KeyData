@@ -1,6 +1,7 @@
 package file_test
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/Vince-maple-byte/KeyData/internals/file"
@@ -9,13 +10,7 @@ import (
 
 func TestReadFile(t *testing.T) {
 	// Example test case
-	t.Run("SampleTest", func(t *testing.T) {
-		expected := 42
-		actual := 42 // Replace with actual function call
-		if expected != actual {
-			t.Errorf("expected %d, got %d", expected, actual)
-		}
-	})
+	
 }
 
 func TestWriteFile(t *testing.T){
@@ -79,6 +74,14 @@ func TestOpenFile(t *testing.T){
 
 func TestPopulateMap(t *testing.T){
 	record,_ := records.CreateRecord("foo","1","PUT");
+	recordF,_ := records.CreateRecord("foo", "4","PUT");
+	record2,_ := records.CreateRecord("bar","1","PUT");
+	record3,_ := records.CreateRecord("n","2","PUT");
+	record4,_ := records.CreateRecord("b","3","PUT");
+	combinedUnique := append(append([]byte{}, record...), record2...);
+	combinedUnique = append(combinedUnique, record3...);
+	combinedUnique = append(combinedUnique, record4...);
+	combinedSame := append(append([]byte{}, record...), recordF...);
 	tests := []struct{
 		testName string
 		ByteSlice []byte
@@ -92,7 +95,17 @@ func TestPopulateMap(t *testing.T){
 		{
 			testName: "IfByteSliceHasValues",
 			ByteSlice: record,
-			expectedMap: map[string]int64{"foo":1,"bar":2,"k1":3},
+			expectedMap: map[string]int64{"foo":0},
+		},
+		{
+			testName: "IfByteSliceHasMultipleValues",
+			ByteSlice: combinedUnique,
+			expectedMap: map[string]int64{"foo":0,"bar":25, "b":73,"n":50},
+		},
+		{
+			testName: "IfByteSliceHasMultiplePutsOftheSameKey",
+			ByteSlice: combinedSame,
+			expectedMap: map[string]int64{"foo":25},
 		},
 	}
 
@@ -100,39 +113,40 @@ func TestPopulateMap(t *testing.T){
 		//When
 		m := file.PopulateMap(test.ByteSlice);
 
-		if test.expectedMap != m {
-			t.Errorf("Map mismatch between expected %v and actual %v", test.expectedMap, m);
+		if !maps.Equal(test.expectedMap, m) {
+			t.Errorf("Map mismatch between\nexpected %v\nand\nactual %v", test.expectedMap, m);
 		}
 	}
 }
 
+
 func TestUpdateMap(t *testing.T){
-	record,_ := records.CreateRecord("foo","1","PUT");
-	record2,_ := records.CreateRecord("foo","2","PUT");
-	tests := []struct{
-		testName string
-		ByteSlice []byte
-		expectedMap map[string]int64
-	}{
-		{
-			testName: "IfByteSliceIsEmpty",
-			ByteSlice: make([]byte,0),
-			expectedMap: make(map[string]int64),
-		},
-		{
-			testName: "IfByteSliceHasValues",
-			ByteSlice: record,
-			expectedMap: map[string]int64{"foo":1,"bar":2,"k1":3},
-		},
-	}
+	// record,_ := records.CreateRecord("foo","1","PUT");
+	// record2,_ := records.CreateRecord("foo","2","PUT");
+	// tests := []struct{
+	// 	testName string
+	// 	ByteSlice []byte
+	// 	expectedMap map[string]int64
+	// }{
+	// 	{
+	// 		testName: "IfByteSliceIsEmpty",
+	// 		ByteSlice: make([]byte,0),
+	// 		expectedMap: make(map[string]int64),
+	// 	},
+	// 	{
+	// 		testName: "IfByteSliceHasValues",
+	// 		ByteSlice: record,
+	// 		expectedMap: map[string]int64{"foo":1,"bar":2,"k1":3},
+	// 	},
+	// }
 
-	for _, test := range tests {
-		//When
-		m := file.UpdateMap(test.ByteSlice);
+	// for _, test := range tests {
+	// 	//When
+	// 	m := file.UpdateMap(test.ByteSlice);
 
-		if test.expectedMap != m {
-			t.Errorf("Map mismatch between expected %v and actual %v", test.expectedMap, m);
-		}
-	}
+	// 	if test.expectedMap != m {
+	// 		t.Errorf("Map mismatch between expected %v and actual %v", test.expectedMap, m);
+	// 	}
+	// }
 }
 
