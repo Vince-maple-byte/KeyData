@@ -14,7 +14,7 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T){
-
+	
 }
 
 func TestOpenFile(t *testing.T){
@@ -73,15 +73,15 @@ func TestOpenFile(t *testing.T){
 }
 
 func TestPopulateMap(t *testing.T){
-	record,_ := records.CreateRecord("foo","1","PUT");
+	record1,_ := records.CreateRecord("foo","1","PUT");
 	recordF,_ := records.CreateRecord("foo", "4","PUT");
 	record2,_ := records.CreateRecord("bar","1","PUT");
 	record3,_ := records.CreateRecord("n","2","PUT");
 	record4,_ := records.CreateRecord("b","3","PUT");
-	combinedUnique := append(append([]byte{}, record...), record2...);
+	combinedUnique := append(append([]byte{}, record1...), record2...);
 	combinedUnique = append(combinedUnique, record3...);
 	combinedUnique = append(combinedUnique, record4...);
-	combinedSame := append(append([]byte{}, record...), recordF...);
+	combinedSame := append(append([]byte{}, record1...), recordF...);
 	tests := []struct{
 		testName string
 		ByteSlice []byte
@@ -94,7 +94,7 @@ func TestPopulateMap(t *testing.T){
 		},
 		{
 			testName: "IfByteSliceHasValues",
-			ByteSlice: record,
+			ByteSlice: record1,
 			expectedMap: map[string]int64{"foo":0},
 		},
 		{
