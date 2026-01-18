@@ -35,8 +35,7 @@ type File struct {
 
 */
 
-//FIXME: We need to read from the entire file and update the map indexes
-//If the file doesn't exist we will just return an empty File object and an error code since we don't want the
+//If the file doesn't exist we will just return an empty File object and an network error code since we don't want the
 //program to stop running for an invalid file path. This would help us in the future when we accept network calls.
 func OpenFile(fileName string) (File,error) {
 	//Just created fileEmpty in here so that I can reuse it in other areas where an error can happen
@@ -117,6 +116,7 @@ func PopulateMap(fileContents []byte) map[string]int64 {
 }
 
 //If we get -1 that means that the file was not successfully written.
+//FIXME: TODO: Have the WriteFile method update the map with the key and current byte offset 
 func (f *File) WriteFile(key, payload, operation string) (amountAdded int, err error){
 	var recordBytes []byte;
 	recordBytes,err = records.CreateRecord(key,payload,operation);
@@ -133,6 +133,11 @@ func (f *File) WriteFile(key, payload, operation string) (amountAdded int, err e
 
 	return amountAdded, nil;
 }
+
+//TODO: Make the Update Map method so that we can update the byte offset to find the key in the database
+func (f *File) UpdateMap(contents []byte) {
+	
+} 
 
 func (f *File) ReadFile(startingPoint int) ([]byte, error) {
 	if startingPoint < 0 {

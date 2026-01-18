@@ -28,7 +28,7 @@ func TestOpenFile(t *testing.T){
 		{
 			testName: "IfFileDoesExists",
 			fileName: "./init.txt",
-			expectedSize: 46,
+			expectedSize: 0,
 			expectedErr: false,
 		},
 		{
@@ -121,32 +121,73 @@ func TestPopulateMap(t *testing.T){
 
 
 func TestUpdateMap(t *testing.T){
-	// record,_ := records.CreateRecord("foo","1","PUT");
-	// record2,_ := records.CreateRecord("foo","2","PUT");
-	// tests := []struct{
-	// 	testName string
-	// 	ByteSlice []byte
-	// 	expectedMap map[string]int64
-	// }{
-	// 	{
-	// 		testName: "IfByteSliceIsEmpty",
-	// 		ByteSlice: make([]byte,0),
-	// 		expectedMap: make(map[string]int64),
-	// 	},
-	// 	{
-	// 		testName: "IfByteSliceHasValues",
-	// 		ByteSlice: record,
-	// 		expectedMap: map[string]int64{"foo":1,"bar":2,"k1":3},
-	// 	},
-	// }
+	record1,_ := records.CreateRecord("foo","1","PUT");
+	record2,_ := records.CreateRecord("foo","2","PUT");
+	record3,_ := records.CreateRecord("bar","3","PUT");
+	emptyMap := make(map[string]int64);
+	fileEmpty := file.File{
+		File: nil,
+		Size: 0,
+		Index: emptyMap,
+	}
 
-	// for _, test := range tests {
-	// 	//When
-	// 	m := file.UpdateMap(test.ByteSlice);
+	fileNonEmpty := file.File{
+		File: nil,
+		Size: 0,
+		Index: map[string]int64{"foo":0},
+	}
 
-	// 	if test.expectedMap != m {
-	// 		t.Errorf("Map mismatch between expected %v and actual %v", test.expectedMap, m);
-	// 	}
-	// }
+	tests := []struct{
+		testName string
+		ByteSlice []byte
+		fileStruct file.File
+		expectedFileStruct file.File
+	}{
+		{
+			testName: "IfMapWasEmpty",
+			ByteSlice: record1,
+			fileStruct: fileEmpty,
+			expectedFileStruct: file.File{
+				File: nil,
+				Size: 0, //Keeping track of the size doesn't matter since the write function will handle that
+				Index: map[string]int64{"foo":0},
+			},
+		},
+		{
+			testName: "IfMapIsNotEmptyAndWeAreAddingAnExistingKey",
+			ByteSlice: record2,
+			fileStruct: fileNonEmpty,
+			expectedFileStruct: file.File{
+				File: nil,
+				Size: 0, //Keeping track of the size doesn't matter since the write function will handle that
+				Index: map[string]int64{"foo":25},
+			},
+		},
+		{
+			testName: "IfMapIsNotEmptyAndWeAreAddingANewKey",
+			ByteSlice: record3,
+			fileStruct: file.File{
+				File: nil,
+				Size:25,
+				Index: map[string]int64{"foo":0},
+			},
+			expectedFileStruct: file.File{
+				File: nil,
+				Size: 0, //Keeping track of the size doesn't matter since the write function will handle that
+				Index: map[string]int64{"foo":0,"bar":25},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		//When
+		test.fileStruct.UpdateMap(test.ByteSlice);
+		
+		//Then
+		if !maps.Equal(test.fileStruct.Index, test.expectedFileStruct.Index) {
+			t.Errorf("Map mismatch between expected %v and actual %v",
+			 test.fileStruct.Index, test.expectedFileStruct.Index);
+		}
+	}
 }
 
