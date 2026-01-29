@@ -8,12 +8,18 @@ import (
 	records "github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
+//TODO: Make test cases for the missing methods
+
 func TestReadFile(t *testing.T) {
 	// Example test case
 
 }
 
 func TestPutContents(t *testing.T) {
+
+}
+
+func TestGetContents(t *testing.T){
 
 }
 
@@ -110,7 +116,8 @@ func TestPopulateMap(t *testing.T) {
 
 	for _, test := range tests {
 		//When
-		m := file.PopulateMap(test.ByteSlice)
+		f := file.File{}
+		m := f.PopulateMap(test.ByteSlice)
 
 		if !maps.Equal(test.expectedMap, m) {
 			t.Errorf("Map mismatch between\nexpected %v\nand\nactual %v", test.expectedMap, m)
@@ -131,7 +138,7 @@ func TestUpdateMap(t *testing.T) {
 
 	fileNonEmpty := file.File{
 		File:  nil,
-		Size:  0,
+		Size:  25,
 		Index: map[string]int64{"foo": 0},
 	}
 
@@ -183,8 +190,8 @@ func TestUpdateMap(t *testing.T) {
 
 		//Then
 		if !maps.Equal(test.fileStruct.Index, test.expectedFileStruct.Index) {
-			t.Errorf("Map mismatch between expected %v and actual %v",
-				test.fileStruct.Index, test.expectedFileStruct.Index)
+			t.Errorf("Map mismatch between expected %v and actual %v for test %v",
+				test.fileStruct.Index, test.expectedFileStruct.Index, test.testName)
 		}
 	}
 }

@@ -1,12 +1,15 @@
-package recordTests;
+package recordTests
 
 import (
-	"fmt"
-	"github.com/Vince-maple-byte/KeyData/internals/record"
-	"time"
 	"encoding/binary"
+	"fmt"
 	"strconv"
+	"time"
+
+	records "github.com/Vince-maple-byte/KeyData/internals/record"
 )
+
+//TODO: Refactor these test cases to be as a proper golang unit test file
 
 func TestRecordTimeStampsIsShownAndAddedCorrectly() {
 	record,err := records.CreateRecord("a", "15348", "PUT");

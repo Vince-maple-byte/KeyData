@@ -2,8 +2,10 @@ package file
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	records "github.com/Vince-maple-byte/KeyData/internals/record"
 )
@@ -78,7 +80,6 @@ func OpenFile(fileName string) (File, error) {
 // Were are basically going to go through the entire file record by record decoding the each record
 // We are also going to checking the checksum for each record
 // And if we encounter an incorrect checksum we will stop from there
-// TODO:(We need to figure out a mechanism to get rid of the all values starting from the invalid record to the end of the file. )
 // Potential solution: We can make a new file writing the values from the beginning until the records were valid and then just update the file struct to be only pointing to the valid log and deleting the old log
 // NOTE: The value part of the map is for the byte offset to locate the record
 func (f *File) PopulateMap(fileContents []byte) map[string]int64 {
@@ -103,9 +104,9 @@ func (f *File) PopulateMap(fileContents []byte) map[string]int64 {
 
 		payloadSize := binary.BigEndian.Uint32(fileContents[payloadSizeSection : index+21])
 
-		payloadByte := fileContents[int(keySize)+(index+21) : payloadSize]
+		payloadByte := fileContents[int(keySize)+(index+21) : int(keySize)+(index+21)+int(payloadSize)]
 
-		checksum := binary.BigEndian.Uint32(fileContents[index+8 : 12])
+		checksum := binary.BigEndian.Uint32(fileContents[index+8: index+12])
 
 		var validChecksum bool = records.ChecksumChecker(payloadByte, checksum)
 
@@ -188,7 +189,7 @@ func (f *File) UpdateMap(contents []byte) {
 
 	keySize := binary.BigEndian.Uint32(contents[13:17])
 
-	key := string(contents[21:keySize])
+	key := string(contents[21:keySize+21])
 
 	f.Index[key] = offset
 }
@@ -222,8 +223,41 @@ func (f *File) ReadFile(startingPoint, endingPoint int) ([]byte, error) {
 
 }
 
-// TODO: Make a method to retrieve the contents in the file of the string provided.
-func (f *File) getContents(key string) (deleted bool, payload string) {
+func (f *File) GetContents(key string) (deleted bool, payload string, timestamp time.Time, err error) {
+	keyOffset := f.Index[key]
+
+	header,e := f.ReadFile(int(keyOffset), int(keyOffset+21));
+
+	if e != nil {
+		err = e
+		return
+	}
+
+	timeByte := header[:8]
+	tombstone := header[12]
+	keySize := binary.BigEndian.Uint32(header[13:17])
+	payloadSize := binary.BigEndian.Uint32(header[17:])
+
+	if tombstone == 1 {
+		deleted = true
+	}
+
+	var contents []byte
+	contents, err = f.ReadFile(int(keyOffset+21),int(keyOffset+21+int64(keySize)+int64(payloadSize)))
+
+	if err != nil {
+		return
+	}
+
+	keySaved := string(contents[0:keySize])
+
+	if key != keySaved {
+		err = errors.New("Invalid key given")
+		return
+	}
+
+	payload = string(contents[keySize:])
+	timestamp = time.Unix(0,int64(binary.BigEndian.Uint64(timeByte)))
 
 	return
 }
