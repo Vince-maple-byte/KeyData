@@ -66,13 +66,15 @@ func OpenFile(fileName string) (File, error) {
 		Index: make(map[string]int64),
 	}
 
-	fileContents, errf := f.ReadFile(0, int(f.Size))
+	if size > 0 {
+		fileContents, errf := f.ReadFile(0, int(f.Size))
 
-	if errf != nil {
-		return fileEmpty, errf
+		if errf != nil {
+			return fileEmpty, errf
+		}
+
+		f.Index = f.PopulateMap(fileContents)
 	}
-
-	f.Index = f.PopulateMap(fileContents)
 
 	return f, err
 }
@@ -106,7 +108,7 @@ func (f *File) PopulateMap(fileContents []byte) map[string]int64 {
 
 		payloadByte := fileContents[int(keySize)+(index+21) : int(keySize)+(index+21)+int(payloadSize)]
 
-		checksum := binary.BigEndian.Uint32(fileContents[index+8: index+12])
+		checksum := binary.BigEndian.Uint32(fileContents[index+8 : index+12])
 
 		var validChecksum bool = records.ChecksumChecker(payloadByte, checksum)
 
@@ -189,7 +191,7 @@ func (f *File) UpdateMap(contents []byte) {
 
 	keySize := binary.BigEndian.Uint32(contents[13:17])
 
-	key := string(contents[21:keySize+21])
+	key := string(contents[21 : keySize+21])
 
 	f.Index[key] = offset
 }
@@ -226,38 +228,39 @@ func (f *File) ReadFile(startingPoint, endingPoint int) ([]byte, error) {
 func (f *File) GetContents(key string) (deleted bool, payload string, timestamp time.Time, err error) {
 	keyOffset := f.Index[key]
 
-	header,e := f.ReadFile(int(keyOffset), int(keyOffset+21));
+	content, e := f.ReadFile(int(keyOffset), int(f.Size))
 
 	if e != nil {
 		err = e
 		return
 	}
 
-	timeByte := header[:8]
-	tombstone := header[12]
-	keySize := binary.BigEndian.Uint32(header[13:17])
-	payloadSize := binary.BigEndian.Uint32(header[17:])
+	timeByte := content[:8]
+	tombstone := content[12]
+	keySize := binary.BigEndian.Uint32(content[13:17])
+	payloadSize := binary.BigEndian.Uint32(content[17:21])
+	timestamp = time.Unix(0, int64(binary.BigEndian.Uint64(timeByte)))
 
 	if tombstone == 1 {
 		deleted = true
+		payload = ""
+		return
+	} else {
+		deleted = false
 	}
-
-	var contents []byte
-	contents, err = f.ReadFile(int(keyOffset+21),int(keyOffset+21+int64(keySize)+int64(payloadSize)))
 
 	if err != nil {
 		return
 	}
 
-	keySaved := string(contents[0:keySize])
+	keySaved := string(content[21 : keySize+21])
 
 	if key != keySaved {
 		err = errors.New("Invalid key given")
 		return
 	}
 
-	payload = string(contents[keySize:])
-	timestamp = time.Unix(0,int64(binary.BigEndian.Uint64(timeByte)))
+	payload = string(content[keySize+21 : (keySize+21)+payloadSize])
 
 	return
 }

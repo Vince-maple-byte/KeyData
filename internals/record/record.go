@@ -60,6 +60,7 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	if operation == "DELETE" {
 		Tombstone = 1
+		payload = ""
 	} else {
 		Tombstone = 0
 	}

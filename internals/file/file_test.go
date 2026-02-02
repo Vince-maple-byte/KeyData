@@ -11,16 +11,162 @@ import (
 //TODO: Make test cases for the missing methods
 
 func TestReadFile(t *testing.T) {
-	// Example test case
+	//Testing table
+	tests := []struct {
+		testName  string
+		fileName  string
+		key       string
+		payload   string
+		operation string
+		expected  int
+	}{
+		{
+			testName:  "TestingInitFile",
+			fileName:  "./init.txt",
+			key:       "a",
+			payload:   "a",
+			operation: "PUT",
+			expected:  23, //The length of the byte array
+		},
+	}
+
+	for _, test := range tests {
+
+		t.Run(test.testName, func(t *testing.T) {
+			//When
+			f, err := file.OpenFile(test.fileName)
+			if err != nil {
+				t.Errorf("%v was not able to be opened", test.fileName)
+			}
+
+			var byteContent []byte
+			byteContent, err = f.ReadFile(0, 23)
+
+			if err != nil {
+				t.Error(err)
+			}
+
+			//Actual
+			if len(byteContent) != test.expected {
+				t.Errorf("For %v, this amount was added %v instead of %v", test.testName, len(byteContent), test.expected)
+			}
+
+		})
+
+	}
 
 }
 
 func TestPutContents(t *testing.T) {
+	//Testing table
+	tests := []struct {
+		testName  string
+		fileName  string
+		key       string
+		payload   string
+		operation string
+		expected  int
+	}{
+		{
+			testName:  "TestingPut",
+			fileName:  "./init.txt",
+			key:       "a",
+			payload:   "a",
+			operation: "PUT",
+			expected:  23,
+		},
+		{
+			testName:  "TestingDelete",
+			fileName:  "./init.txt",
+			key:       "a",
+			payload:   "",
+			operation: "DELETE",
+			expected:  22,
+		},
+		{
+			testName:  "TestingDelete",
+			fileName:  "./init.txt",
+			key:       "b",
+			payload:   "b",
+			operation: "PUT",
+			expected:  23,
+		},
+	}
 
+	for _, test := range tests {
+
+		t.Run(test.testName, func(t *testing.T) {
+			//When
+			f, err := file.OpenFile(test.fileName)
+			if err != nil {
+				t.Errorf("%v was not able to be opened", test.fileName)
+			}
+
+			var amountAdded int
+			amountAdded, err = f.PutContents(test.key, test.payload, test.operation)
+
+			if err != nil {
+				t.Error(err)
+			}
+
+			//Actual
+			if amountAdded != test.expected {
+				t.Errorf("For %v, this amount was added %v instead of %v", test.testName, amountAdded, test.expected)
+			}
+
+		})
+
+	}
 }
 
-func TestGetContents(t *testing.T){
+func TestGetContents(t *testing.T) {
+	//Testing table
+	tests := []struct {
+		testName        string
+		fileName        string
+		key             string
+		deleted         bool
+		expectedPayload string
+	}{
+		{
+			testName:        "TestingInitFileA",
+			fileName:        "./init.txt",
+			key:             "a",
+			deleted:         true,
+			expectedPayload: "",
+		},
+		{
+			testName:        "TestingInitFileB",
+			fileName:        "./init.txt",
+			key:             "b",
+			deleted:         false,
+			expectedPayload: "b",
+		},
+	}
 
+	for _, test := range tests {
+
+		t.Run(test.testName, func(t *testing.T) {
+			//When
+			f, err := file.OpenFile(test.fileName)
+			if err != nil {
+				t.Errorf("%v was not able to be opened", test.fileName)
+			}
+
+			delete, payload, _, errf := f.GetContents(test.key)
+
+			if errf != nil {
+				t.Error(errf)
+			}
+
+			//Actual
+			if delete != test.deleted || string(payload) != test.expectedPayload {
+				t.Errorf("For %v, this record %v returns an invalid value %v and %v", test.testName, test.key, delete, string(payload))
+			}
+
+		})
+
+	}
 }
 
 func TestOpenFile(t *testing.T) {
