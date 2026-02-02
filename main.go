@@ -2,15 +2,12 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/Vince-maple-byte/KeyData/internals/file"
 	//"time"
-
 	// "github.com/Vince-maple-byte/KeyData/internals/file"
-
 	//"github.com/Vince-maple-byte/KeyData/internals/record"
-
 	// "unsafe"
-
-	recordTests "github.com/Vince-maple-byte/KeyData/tests"
 )
 
 /*
@@ -43,88 +40,94 @@ From there we can move on to SSTable, compaction, LSM Tables, and finally bloom 
 */
 
 func main() {
-	fmt.Println("Hello World");
-	fmt.Print("Nice goals\n");
-	
+	var database string
+	fmt.Println("Welcome to KeyData")
+	fmt.Print("Enter your database name to get started\n")
 
-	// f, err := file.OpenFile("./internals/file/init.txt");
+	_, err := fmt.Scan(&database)
 
-	// if(err != nil) {
-	// 	fmt.Println(err);
-	// }
-	// } else {
+	for err != nil {
+		fmt.Println("Please enter a valid database name")
+		_, err = fmt.Scan(&database)
+	}
 
-	// 	//Just checking if the CRC32 is working properly
-	// 	b,_ := f.ReadFile();
-	// 	t,_ := f.ReadFile();
-	// 	fmt.Println(string(b));
-	// 	fmt.Println(records.CheckSum(string(b)));
+	database += ".log"
 
-	// 	var str string = "This is a text file.";
-	// 	s := "This is a text file.";
+	f, errf := file.OpenFile(database)
+	defer f.File.Close()
 
-	// 	fmt.Println(records.CheckSum(str));
-	// 	fmt.Println(records.CheckSum(s));
+	if errf != nil {
+		panic(errf)
+	}
 
-	// 	if records.CheckSum(str) == records.CheckSum(s) {
-	// 		fmt.Println("These checksums are equal: \n" + str + "\n" + s + "\n");
-	// 	}
+	fmt.Println("Database", database, "opened successfully")
+	willContinue := true
 
-	// 	if records.CheckSum(string(t)) == records.CheckSum(string(b)) {
-	// 		fmt.Println("These checksums are equal: \n" + string(b) + "\n" + string(t) + "\n");
-	// 	}
+	for willContinue {
+		fmt.Println("Enter an operation: PUT, DELETE, GET")
 
-	// 	fmt.Println(len((b)))
-	// }
+		var operation string
+		_, err := fmt.Scan(&operation)
 
+		if err != nil {
+			break
+		}
 
-	//How we are going to make the timestamps
-	
+		if operation == "PUT" {
+			fmt.Println("Enter a key")
+			var key string
+			fmt.Scan(&key)
+			fmt.Println("Enter the data that you want to save")
+			var payload string
+			fmt.Scan(&payload)
 
-	// fmt.Println(buffer);
-	// fmt.Println(len(buffer));
+			numAdded, _ := f.PutContents(key, payload, "PUT")
 
-	// //fmt.Println("size of this in bytes",unsafe.Sizeof([]byte("This")));
-	// var parseTime time.Time;
-	// err = parseTime.UnmarshalBinary(buffer);
-	// if err != nil {
-	// 	panic(err);
-	// }
+			if numAdded > -1 {
+				fmt.Println("Was able to successfully add the key/value pair into the database")
+			} else {
+				fmt.Println("Was not able to successfully add the key/value pair into the database")
+			}
 
-	// fmt.Printf("t: %v\n", t);
-	// fmt.Printf("parseTime: %v\n", parseTime);
-	// fmt.Printf("equal: %v\n", parseTime.Equal(t));
+		}
+		if operation == "DELETE" {
+			fmt.Println("Enter a key")
+			var key string
+			fmt.Scan(&key)
 
+			numAdded, _ := f.PutContents(key, "", "DELETE")
 
-	// record,err := records.CreateRecord("a", "15348", "PUT");
+			if numAdded > -1 {
+				fmt.Println("Was able to successfully delete the key/value pair into the database")
+			} else {
+				fmt.Println("Was not able to successfully delete the key/value pair into the database")
+			}
 
-	// if err != nil {
-	// 	panic(err);
-	// }
+		}
+		if operation == "GET" {
+			fmt.Println("Enter a key")
+			var key string
+			fmt.Scan(&key)
 
-	// var parseTime time.Time;
-	// err = parseTime.UnmarshalBinary(record[:15]);
-	// fmt.Println(record);
+			deleted, payload, timestamp, err := f.GetContents(key)
 
-	// if err != nil {
-	// 	panic(err);
-	// }
+			if err != nil {
+				fmt.Println("Was able not able to retrieve the file contents for", key)
+			} else {
+				fmt.Printf("For key %v:\nThe payload: %v\nDeleted: %v\nThe timestamp: %v\n", key, payload, deleted, timestamp)
+			}
 
-	// fmt.Printf("Time: %v\n", parseTime);
+		}
+		operation = ""
 
-	
-	recordTests.TestRecordTimeStampsIsShownAndAddedCorrectly();
+		fmt.Println("Do you want to continue?(Y/N)")
+		var choice string
+		fmt.Scan(&choice)
 
-	recordTests.TestRecordCheckSumIfAddedCorrectly();
+		if choice == "N" || choice == "n" {
+			break
+		}
 
-	recordTests.TestRecordTombstoneIfAddedCorrectly();
+	}
 
-	recordTests.TestRecordIfKeySizeIsSavedCorrectly();
-	
-	recordTests.TestRecordIfPayloadSizeIsSavedCorrectly();
-	
-	recordTests.TestRecordIfKeyIsSavedCorrectly();
-
-	recordTests.TestRecordIfPayloadIsSavedCorrectly();
-	
 }
