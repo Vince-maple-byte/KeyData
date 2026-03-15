@@ -1,4 +1,4 @@
-package file
+package memtable
 
 import "math/rand/v2"
 
