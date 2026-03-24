@@ -1,6 +1,9 @@
 package memtable
 
-import "math/rand/v2"
+import (
+	"errors"
+	"math/rand/v2"
+)
 
 const MAX_LEVEL = 32; 
 
@@ -23,8 +26,8 @@ func CreateSkiplist() *Skiplist {
 	return &Skiplist{head: head};
 }
 
-func (list *Skiplist) Search(key string) []byte {
-	curr := list.head;
+func (list *Skiplist) Search(key string) ([]byte, error) {
+  	curr := list.head;
 	var next *Node;
 
 	for i := len(list.head.levels)-1; i >= 0; i-- {
@@ -33,11 +36,11 @@ func (list *Skiplist) Search(key string) []byte {
 			curr = next;
 		}
 		if next != nil && next.key == key {
-			return next.value;
+			return next.value, nil;
 		}
 	} 
 
-	return nil;
+	return nil, errors.New("Element doesn't exist");
 }
 
 func (list *Skiplist) Insert(key string, value []byte) {
@@ -50,6 +53,13 @@ func (list *Skiplist) Insert(key string, value []byte) {
 		}
 
 		update[i] = curr;
+	}
+	
+	//This code block checks if the key is already inside of the skiplist
+	next := curr.levels[0];
+	if next != nil && next.key == key {
+		next.value = value;
+		return;
 	}
 
 	newNode := &Node{
@@ -64,9 +74,51 @@ func (list *Skiplist) Insert(key string, value []byte) {
 	}
 }
 
-func (list *Skiplist) Delete(key string) []byte {
+func (list *Skiplist) Delete(key string) ([]byte,error) {
+	deleteNode, err := list.searchNode(key);
 
-	return nil;
+	if err != nil {
+		return nil, err;
+	}
+
+	update := make([]*Node, len(deleteNode.levels));
+	curr := list.head;
+	val := deleteNode.value;
+
+	for i:= len(update)-1; i>=0; i-- {
+		for curr.levels[i] != nil && key > curr.levels[i].key {
+    		curr = curr.levels[i]
+		}	
+
+		update[i] = curr;
+	}
+
+	for i:= 0; i < len(update); i++ {
+		update[i].levels[i] = deleteNode.levels[i];
+	}
+
+	return val, nil;
+}
+
+func (list Skiplist) searchNode(key string) (*Node, error) {
+	curr := list.head;
+	var next *Node;
+
+	for i := len(list.head.levels)-1; i >= 0; i-- {
+		
+		for next = curr.levels[i]; next != nil && key > next.key; next = curr.levels[i] {
+			curr = next;
+		}
+		if next != nil && next.key == key {
+			return next, nil;
+		}
+	} 
+
+	return nil, errors.New("Element doesn't exist");
+}
+
+func (list *Skiplist) EmptyList() {
+	list = CreateSkiplist();
 }
 
 func randLevel() int {

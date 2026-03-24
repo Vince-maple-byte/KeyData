@@ -1,4 +1,4 @@
-package records_test
+package record_test
 
 import (
 	"encoding/binary"

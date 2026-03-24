@@ -13,8 +13,7 @@ import (
 /*
 
 TODO:
-
-Make the Write method
+Refactor the file folder to handle file operations for both in memory data store (skiplist) and the file i/o in case we have a file miss. So get rid of the map, and the everything else.
 
 How the structure of the timestamp would look like
 Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
