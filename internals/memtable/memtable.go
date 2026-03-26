@@ -18,8 +18,8 @@ func CreateMemtable() *Memtable {
 	}
 }
 
-func (memtable *Memtable) Write(key, value string) (bool, error) {
-	record, err := record.CreateRecord(key, value, "PUT");
+func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
+	record, err := record.CreateRecord(key, value, operation);
 
 	if err != nil {
 		return false, err;
@@ -38,18 +38,7 @@ func (memtable *Memtable) Write(key, value string) (bool, error) {
 	return true, nil;
 }
 
-//TODO: Fix this so that it is added into the skiplist as a record with an empty value and a tombstone of 1
-func (memtable *Memtable) Delete(key string) (bool, error) {
-	_, err := memtable.list.Delete(key);
-
-	if err != nil {
-		return false, err;
-	} 
-
-	return true, nil;
-}
-
-func (memtable *Memtable) Get(key string) ([] byte, error) {
+func (memtable *Memtable) Get(key string) ([]byte, error) {
 	record, err := memtable.list.Search(key);
 
 	if err != nil {
