@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
+	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 const COMPACTION_SIZE = 4;
 
 //TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
-func WriteToFile(list Skiplist) (bool, error) {
+func WriteToFile(list memtable.Skiplist) (bool, error) {
 	filepath := "./internals/data";
 	filename := ""
 	files, err := os.ReadDir(filepath);
@@ -33,8 +33,14 @@ func WriteToFile(list Skiplist) (bool, error) {
 		filename = "kd_"+strconv.Itoa(index+1)+".sst"	
 	}
 
+	file, err := os.Create(filename);
+
+	if err != nil {
+		return false, err;
+	}
 	
 
+	// file.Write()
 	record
 } 	
 

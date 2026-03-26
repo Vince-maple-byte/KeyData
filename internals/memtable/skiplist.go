@@ -15,6 +15,7 @@ type Node struct {
 
 type Skiplist struct {
 	head *Node
+	size int
 }
 
 func CreateSkiplist() *Skiplist {
@@ -23,7 +24,10 @@ func CreateSkiplist() *Skiplist {
 		value: nil,
 		levels: make([]*Node, MAX_LEVEL),
 	};
-	return &Skiplist{head: head};
+	return &Skiplist{
+		head: head
+		size: 0;
+	};
 }
 
 func (list *Skiplist) Search(key string) ([]byte, error) {
@@ -72,6 +76,8 @@ func (list *Skiplist) Insert(key string, value []byte) {
 		newNode.levels[i] = update[i].levels[i];
 		update[i].levels[i] = newNode;
 	}
+
+	list.size++;
 }
 
 func (list *Skiplist) Delete(key string) ([]byte,error) {
@@ -93,7 +99,7 @@ func (list *Skiplist) Delete(key string) ([]byte,error) {
 		update[i] = curr;
 	}
 
-	for i:= 0; i < len(update); i++ {
+	for i := range(len(update))  {
 		update[i].levels[i] = deleteNode.levels[i];
 	}
 
@@ -119,6 +125,18 @@ func (list Skiplist) searchNode(key string) (*Node, error) {
 
 func (list *Skiplist) EmptyList() {
 	list = CreateSkiplist();
+}
+
+func (list *Skiplist) EntireList() ([][]byte) {
+	curr := list.head.levels[0]
+	res := make([][]byte);
+	
+	for _ := range(list.size) {
+		res = append(res, curr.value);
+		curr = curr.levels[0];
+	}
+
+	return res;
 }
 
 func randLevel() int {
