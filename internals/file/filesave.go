@@ -39,9 +39,12 @@ func WriteToFile(list memtable.Skiplist) (bool, error) {
 		return false, err;
 	}
 	
+	contents := list.EntireList();
+
+	//Create the indexing block for the file 
+
 
 	// file.Write()
-	record
 } 	
 
 

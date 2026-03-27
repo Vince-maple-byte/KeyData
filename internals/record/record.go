@@ -90,3 +90,20 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	return b, nil
 }
+
+func GetContents(content []byte) (timestamp time.Time,checksum uint32,tombstone uint8,keySize uint32,payloadSize uint32,key string, payload string) {
+	timeByte := content[:8]
+	timestamp = time.Unix(0, int64(binary.BigEndian.Uint64(timeByte)))
+
+	checksum = binary.BigEndian.Uint32(content[8:12]);	
+	
+	tombstone = uint8(content[12]);
+
+	keySize = binary.BigEndian.Uint32(content[13:17])
+	payloadSize = binary.BigEndian.Uint32(content[17:21]);
+
+	key = string(content[21:keySize+21]);
+	payload = string(content[keySize+21 : (keySize+21)+payloadSize])
+
+	return;
+}
