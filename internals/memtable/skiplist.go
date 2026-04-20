@@ -25,8 +25,8 @@ func CreateSkiplist() *Skiplist {
 		levels: make([]*Node, MAX_LEVEL),
 	};
 	return &Skiplist{
-		head: head
-		size: 0;
+		head: head,
+		size: 0,
 	};
 }
 
@@ -102,7 +102,8 @@ func (list *Skiplist) Delete(key string) ([]byte,error) {
 	for i := range(len(update))  {
 		update[i].levels[i] = deleteNode.levels[i];
 	}
-
+	
+	list.size--;
 	return val, nil;
 }
 
@@ -128,10 +129,10 @@ func (list *Skiplist) EmptyList() {
 }
 
 func (list *Skiplist) EntireList() ([][]byte) {
-	curr := list.head.levels[0]
-	res := make([][]byte);
+	curr := list.head.levels[0];
+	res := make([][]byte, list.size);
 	
-	for _ := range(list.size) {
+	for range(list.size) {
 		res = append(res, curr.value);
 		curr = curr.levels[0];
 	}
