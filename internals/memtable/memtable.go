@@ -1,6 +1,8 @@
-package memtable 
+package memtable
 
 import (
+	"github.com/Vince-maple-byte/KeyData/internals/file"
+	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
@@ -28,14 +30,31 @@ func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
 	memtable.list.Insert(key, record);
 	memtable.size += 1;
 
-	if(memtable.size == MAX_SIZE) {
-		//We are going to call a writeToFile function here
+	if(memtable.size >= MAX_SIZE) {
+		_, errF := file.WriteToFile(&memtable.list)	
+
+		if errF != nil {
+			return false, errF;
+		}
+
 		memtable.list.EmptyList();
 		memtable.size = 0;
 		
 	}
 	
 	return true, nil;
+}
+
+func (memtable *Memtable) Read(key string) ([]byte, error) {
+	record, err := memtable.list.Search(key);
+
+	if err != nil {
+		//Call the method to perform the file i/o operation for reads
+
+		//If we still return an error we would return a nil/empty byte slice and a error
+	}
+
+	return record, nil;
 }
 
 func (memtable *Memtable) Get(key string) ([]byte, error) {

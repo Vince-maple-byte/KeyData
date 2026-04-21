@@ -2,6 +2,7 @@ package file
 
 import (
 	"encoding/binary"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -12,7 +13,60 @@ import (
 
 const COMPACTION_SIZE = 4;
 
-//TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
+func ReadFromStorage() ([]byte, error) {
+	filepath := "./internals/data";
+
+	files, err := os.ReadDir(filepath);
+
+	for i := len(files) - 1; i >= 0; i-- {
+		var record []byte;
+		record, err := readfile(files[i].Name());
+
+		if err == nil {
+			return record, nil;
+		}
+	}
+
+	return nil, errors.New("Key/Value pair could not be found")
+}
+
+func readfile(filename string) ([]byte, error) {
+	file, err := os.Open(filename);
+
+	if err != nil {
+		return nil, err;
+	}
+
+	fileInfo, err := file.Stat();
+
+	if err != nil {
+		return nil, err;
+	}
+
+	size := fileInfo.Size();
+
+	_, err = file.Seek(size - int64(128), 0);
+
+	if err != nil {
+		return nil, err;
+	}
+
+	footer := make([]byte, 128);
+
+	file.Read(footer);
+
+	fileOffset := binary.BigEndian.Uint64(footer[:64]);
+
+	indexOffset := binary.BigEndian.Uint64(footer[64:]);
+
+	// TODO: finish with this method. Start with the index block and do a binary search for each key in the block
+	// until you find a key that is equal to greater than that block while being less than the next key. If the
+	// key is not equal than we just do the binary search again but this time in the block of the key that is represented 
+	// in the key in our file block. If it is still not there then the key/value pair doesn't exist.
+}
+
+
+//TODO:Make unit tests for write method for the file i/o; use the diagram that I made as a guide.
 //How the file is going to look like
 //File block, index block, footer
 //The file block is going to contain all of the contents of the file aka the records
@@ -57,7 +111,6 @@ func WriteToFile(list memtable.Skiplist) (bool, error) {
 	
 	//Create the footer block for the file 
 	footerblock := footerblock(fileblock);
-	// file.Write()
 
 	write := append(fileblock, indexblock...)
 	write = append(write, footerblock...)
