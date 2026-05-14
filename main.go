@@ -1,14 +1,9 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/Vince-maple-byte/KeyData/internals/file"
-	//"time"
-	// "github.com/Vince-maple-byte/KeyData/internals/file"
-	//"github.com/Vince-maple-byte/KeyData/internals/record"
-	// "unsafe"
-)
+//"time"
+// "github.com/Vince-maple-byte/KeyData/internals/file"
+//"github.com/Vince-maple-byte/KeyData/internals/record"
+// "unsafe"
 
 /*
 
@@ -39,94 +34,7 @@ From there we can move on to SSTable, compaction, LSM Tables, and finally bloom 
 */
 
 func main() {
-	var database string
-	fmt.Println("Welcome to KeyData")
-	fmt.Print("Enter your database name to get started\n")
+	
 
-	_, err := fmt.Scan(&database)
-
-	for err != nil {
-		fmt.Println("Please enter a valid database name")
-		_, err = fmt.Scan(&database)
-	}
-
-	database += ".log"
-
-	f, errf := file.OpenFile(database)
-	defer f.File.Close()
-
-	if errf != nil {
-		panic(errf)
-	}
-
-	fmt.Println("Database", database, "opened successfully")
-	willContinue := true
-
-	for willContinue {
-		fmt.Println("Enter an operation: PUT, DELETE, GET")
-
-		var operation string
-		_, err := fmt.Scan(&operation)
-
-		if err != nil {
-			break
-		}
-
-		if operation == "PUT" {
-			fmt.Println("Enter a key")
-			var key string
-			fmt.Scan(&key)
-			fmt.Println("Enter the data that you want to save")
-			var payload string
-			fmt.Scan(&payload)
-
-			numAdded, _ := f.PutContents(key, payload, "PUT")
-
-			if numAdded > -1 {
-				fmt.Println("Was able to successfully add the key/value pair into the database")
-			} else {
-				fmt.Println("Was not able to successfully add the key/value pair into the database")
-			}
-
-		}
-		if operation == "DELETE" {
-			fmt.Println("Enter a key")
-			var key string
-			fmt.Scan(&key)
-
-			numAdded, _ := f.PutContents(key, "", "DELETE")
-
-			if numAdded > -1 {
-				fmt.Println("Was able to successfully delete the key/value pair into the database")
-			} else {
-				fmt.Println("Was not able to successfully delete the key/value pair into the database")
-			}
-
-		}
-		if operation == "GET" {
-			fmt.Println("Enter a key")
-			var key string
-			fmt.Scan(&key)
-
-			deleted, payload, timestamp, err := f.GetContents(key)
-
-			if err != nil {
-				fmt.Println("Was able not able to retrieve the file contents for", key)
-			} else {
-				fmt.Printf("For key %v:\nThe payload: %v\nDeleted: %v\nThe timestamp: %v\n", key, payload, deleted, timestamp)
-			}
-
-		}
-		operation = ""
-
-		fmt.Println("Do you want to continue?(Y/N)")
-		var choice string
-		fmt.Scan(&choice)
-
-		if choice == "N" || choice == "n" {
-			break
-		}
-
-	}
 
 }

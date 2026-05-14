@@ -1,9 +1,8 @@
 package memtable
 
 import (
-	"github.com/Vince-maple-byte/KeyData/internals/file"
-	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
 const MAX_SIZE = 3200
@@ -31,7 +30,8 @@ func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
 	memtable.size += 1;
 
 	if(memtable.size >= MAX_SIZE) {
-		_, errF := file.WriteToFile(&memtable.list)	
+		content := memtable.list.EntireList();
+		_, errF := sstable.WriteToFile(content)	
 
 		if errF != nil {
 			return false, errF;
