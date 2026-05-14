@@ -125,7 +125,20 @@ func (list Skiplist) searchNode(key string) (*Node, error) {
 }
 
 func (list *Skiplist) EmptyList() {
-	list = CreateSkiplist();
+	// head := &Node{
+	// 	key: "",
+	// 	value: nil,
+	// 	levels: make([]*Node, MAX_LEVEL),
+	// };
+	// return &Skiplist{
+	// 	head: head,
+	// 	size: 0,
+	// };
+	list.head.key = "";
+	list.head.value = nil;
+	list.head.levels = make([]*Node, MAX_LEVEL);
+
+	list.size = 0;
 }
 
 func (list *Skiplist) EntireList() ([][]byte) {
