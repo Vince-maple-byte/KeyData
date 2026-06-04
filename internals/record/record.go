@@ -13,6 +13,17 @@ import (
 
 // The int value for the checksum is different depending on the data that we provide
 // As long as the data is the same between two variables they should always have the same checksum.
+
+type Content struct {
+	Timestamp   time.Time
+	Checksum    uint32
+	Tombstone   uint8
+	Keysize     uint32
+	Payloadsize uint32
+	Key         string
+	Payload     string
+}
+
 func checkSum(data string) uint32 {
 	return crc32.ChecksumIEEE([]byte(data))
 }
@@ -91,19 +102,19 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 	return b, nil
 }
 
-func GetContents(content []byte) (timestamp time.Time,checksum uint32,tombstone uint8,keySize uint32,payloadSize uint32,key string, payload string) {
-	timeByte := content[:8];
-	timestamp = time.Unix(0, int64(binary.BigEndian.Uint64(timeByte)));
+func GetContents(content []byte) (result Content) {
+	timeByte := content[:8]
+	result.Timestamp = time.Unix(0, int64(binary.BigEndian.Uint64(timeByte)))
 
-	checksum = binary.BigEndian.Uint32(content[8:12]);	
-	
-	tombstone = uint8(content[12]);
+	result.Checksum = binary.BigEndian.Uint32(content[8:12])
 
-	keySize = binary.BigEndian.Uint32(content[13:17]);
-	payloadSize = binary.BigEndian.Uint32(content[17:21]);
+	result.Tombstone = uint8(content[12])
 
-	key = string(content[21:keySize+21]);
-	payload = string(content[keySize+21 : (keySize+21)+payloadSize]);
+	result.Keysize = binary.BigEndian.Uint32(content[13:17])
+	result.Payloadsize = binary.BigEndian.Uint32(content[17:21])
 
-	return;
+	result.Key = string(content[21 : result.Keysize+21])
+	result.Payload = string(content[result.Keysize+21 : (result.Keysize+21)+result.Payloadsize])
+
+	return
 }

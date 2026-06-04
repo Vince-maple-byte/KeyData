@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	records "github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 func TestRecordTimeStamp(t *testing.T) {
@@ -44,7 +44,7 @@ func TestRecordTimeStamp(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		record, err := record.CreateRecord(test.key, test.payload, test.operation)
 		now := time.Now()
 
 		if err != nil {
@@ -96,7 +96,7 @@ func TestRecordCheckSum(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		record, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
@@ -136,7 +136,7 @@ func TestRecordTombstone(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		record, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
@@ -176,7 +176,7 @@ func TestRecordKeySize(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		record, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
@@ -216,7 +216,7 @@ func TestRecordPayloadSize(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		record, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
@@ -256,7 +256,7 @@ func TestRecordKey(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		record, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
@@ -297,19 +297,42 @@ func TestRecordPayload(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		record, err := records.CreateRecord(test.key, test.payload, test.operation)
+		records, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
 		}
 
 		//var parseTime time.Time;
-		keySize := binary.BigEndian.Uint32(record[13:17])
+		keySize := binary.BigEndian.Uint32(records[13:17])
 		//payloadSize := binary.BigEndian.Uint32(record[17:21])
-		payload := string(record[keySize+21:])
+		payload := string(records[keySize+21:])
 
 		if payload != test.expected {
 			t.Errorf("incorrect checksum for %v", test.testName)
 		}
+	}
+}
+
+func TestGetContents(t *testing.T) {
+	key := "helllpp"
+	payload := "hhhh"
+	records, err := record.CreateRecord(key, payload, "PUT")
+
+	if err != nil {
+		t.Errorf("Unable to create the record")
+	}
+
+	getContents := record.GetContents(records)
+
+	// if time.Unix(0, int64(binary.BigEndian.Uint64(records[:8]))) != getContents.Timestamp {
+	// 	t.Errorf("Was not able to retrieve the proper timestamp\n",
+	// 		"Expected:", time.Unix(0, int64(binary.BigEndian.Uint64(records[:8]))),
+	// 		"Actual:", getContents.Timestamp)
+	// }
+
+	if getContents.Checksum != binary.BigEndian.Uint32(records[8:12]) {
+		t.Errorf("Was not able to retrieve the proper checksum\nExpected:%v\nActual:%v",
+			binary.BigEndian.Uint32(records[8:12]), getContents.Timestamp)
 	}
 }
