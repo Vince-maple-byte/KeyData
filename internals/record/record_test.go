@@ -325,14 +325,39 @@ func TestGetContents(t *testing.T) {
 
 	getContents := record.GetContents(records)
 
-	// if time.Unix(0, int64(binary.BigEndian.Uint64(records[:8]))) != getContents.Timestamp {
-	// 	t.Errorf("Was not able to retrieve the proper timestamp\n",
-	// 		"Expected:", time.Unix(0, int64(binary.BigEndian.Uint64(records[:8]))),
-	// 		"Actual:", getContents.Timestamp)
-	// }
+	if time.Unix(0, int64(binary.BigEndian.Uint64(records[:8]))) != getContents.Timestamp {
+		t.Errorf("Was not able to retrieve the proper timestamp\nExpected:%v\nActual:%v",
+			time.Unix(0, int64(binary.BigEndian.Uint64(records[:8]))),
+			getContents.Timestamp)
+	}
 
 	if getContents.Checksum != binary.BigEndian.Uint32(records[8:12]) {
 		t.Errorf("Was not able to retrieve the proper checksum\nExpected:%v\nActual:%v",
-			binary.BigEndian.Uint32(records[8:12]), getContents.Timestamp)
+			binary.BigEndian.Uint32(records[8:12]), getContents.Checksum)
+	}
+
+	if getContents.Tombstone != uint8(records[12]) {
+		t.Errorf("Was not able to retrieve the proper tombstone\nExpected:%v\nActual:%v",
+			uint8(records[12]), getContents.Tombstone)
+	}
+
+	if getContents.Keysize != binary.BigEndian.Uint32(records[13:17]) {
+		t.Errorf("Was not able to retrieve the proper key size\nExpected:%v\nActual:%v",
+			binary.BigEndian.Uint32(records[13:17]), getContents.Keysize)
+	}
+
+	if getContents.Payloadsize != binary.BigEndian.Uint32(records[17:21]) {
+		t.Errorf("Was not able to retrieve the proper payload size\nExpected:%v\nActual:%v",
+			binary.BigEndian.Uint32(records[17:21]), getContents.Payloadsize)
+	}
+
+	if getContents.Key != string(records[21:getContents.Keysize+21]) {
+		t.Errorf("Was not able to retrieve the proper key\nExpected:%v\nActual:%v",
+			binary.BigEndian.Uint32(records[21:getContents.Keysize+21]), getContents.Key)
+	}
+
+	if getContents.Payload != string(records[getContents.Keysize+21:]) {
+		t.Errorf("Was not able to retrieve the proper payload\nExpected:%v\nActual:%v",
+			string(records[getContents.Keysize+21:]), getContents.Payload)
 	}
 }
