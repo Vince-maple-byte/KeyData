@@ -2,6 +2,8 @@ package sstable
 
 import (
 	"encoding/binary"
+	"fmt"
+	"io/fs"
 	"os"
 	"slices"
 	"strconv"
@@ -10,14 +12,20 @@ import (
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
+type file_buckets float64
+
 const (
-	COMPACTION_SIZE = 4
-	INDEX_BLOCK     = 20
+	COMPACTION_SIZE              = 4
+	INDEX_BLOCK                  = 20
+	SMALL           file_buckets = 0.5
+	MEDIUM          file_buckets = 1.0
+	LARGE           file_buckets = 1.5
+	OVERSIZE        file_buckets = 2.0
 )
 
 // TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
 func WriteToFile(list [][]byte) (bool, error) {
-	filepath := "./internals/data"
+	filepath := "../data"
 	filename := ""
 	files, err := os.ReadDir(filepath)
 
@@ -58,7 +66,7 @@ func WriteToFile(list [][]byte) (bool, error) {
 
 	file.Sync()
 
-	compact(files)
+	buckets(files)
 
 	return true, nil
 }
@@ -126,6 +134,65 @@ func fileOffset(contentList [][]byte) []uint64 {
 
 	return offset
 }
-func compact(files []os.DirEntry) {
 
+// We are going to be doing size based compaction for compacting these files
+// The amount of files that need to be a similar size
+func buckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
+	// min_threshold := 4
+	// max_threshold := 32
+	var average_size int64
+	var total_size int64
+	//var largest_size int64 = 0
+	//var min
+
+	buckets := make(map[file_buckets][]fs.FileInfo)
+
+	buckets[SMALL] = make([]fs.FileInfo, 0)
+	buckets[MEDIUM] = make([]fs.FileInfo, 0)
+	buckets[LARGE] = make([]fs.FileInfo, 0)
+	buckets[OVERSIZE] = make([]fs.FileInfo, 0)
+
+	for _, file := range files {
+
+		fileInfo, err := file.Info()
+
+		if err != nil {
+			continue
+		}
+
+		total_size += fileInfo.Size()
+	}
+
+	average_size = total_size / int64(len(files))
+	fmt.Println(average_size)
+	fmt.Println(total_size)
+
+	for _, file := range files {
+		fileInfo, _ := file.Info()
+		size := fileInfo.Size()
+
+		switch {
+		case float64(size) >= float64(average_size)*float64(OVERSIZE):
+			buckets[OVERSIZE] = append(buckets[OVERSIZE], fileInfo)
+		case float64(size) >= float64(average_size)*float64(LARGE):
+			buckets[LARGE] = append(buckets[LARGE], fileInfo)
+		case float64(size) >= float64(average_size)*float64(MEDIUM):
+			buckets[MEDIUM] = append(buckets[MEDIUM], fileInfo)
+		default:
+			buckets[SMALL] = append(buckets[SMALL], fileInfo)
+		}
+	}
+
+	return buckets
+	// for _, bucket := range buckets {
+	// 	if len(bucket) >= min_threshold || len(bucket) <= max_threshold {
+	// 		//We do the compacting here
+	// 		fmt.Println("Compacting here", bucket[0].Name())
+	// 		break
+	// 	}
+	// }
+}
+
+func ExportCompact(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
+	return compact(files)
 }
