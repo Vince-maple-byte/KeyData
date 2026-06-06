@@ -2,7 +2,6 @@ package sstable
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io/fs"
 	"os"
 	"slices"
@@ -146,6 +145,8 @@ func buckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
 	//var min
 
 	buckets := make(map[file_buckets][]fs.FileInfo)
+	//
+	//
 
 	buckets[SMALL] = make([]fs.FileInfo, 0)
 	buckets[MEDIUM] = make([]fs.FileInfo, 0)
@@ -164,8 +165,6 @@ func buckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
 	}
 
 	average_size = total_size / int64(len(files))
-	fmt.Println(average_size)
-	fmt.Println(total_size)
 
 	for _, file := range files {
 		fileInfo, _ := file.Info()
@@ -184,15 +183,8 @@ func buckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
 	}
 
 	return buckets
-	// for _, bucket := range buckets {
-	// 	if len(bucket) >= min_threshold || len(bucket) <= max_threshold {
-	// 		//We do the compacting here
-	// 		fmt.Println("Compacting here", bucket[0].Name())
-	// 		break
-	// 	}
-	// }
 }
 
-func ExportCompact(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
-	return compact(files)
+func ExportBuckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
+	return buckets(files)
 }

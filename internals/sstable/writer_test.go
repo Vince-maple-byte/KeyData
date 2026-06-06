@@ -16,7 +16,8 @@ func TestCheck(t *testing.T) {
 	}
 }
 
-func startUp(data ...string) error {
+func startUp(data ...string) (int, error) {
+	size := 0
 	for i := range 10 {
 		targetDir := "../test"
 		name := fmt.Sprintf("%s_%d.txt", "testfile", i)
@@ -24,50 +25,73 @@ func startUp(data ...string) error {
 		file, err := os.Create(fullPath)
 
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		//This is 31 bytes long for the even method and the increasing method will be +1
 		w, _ := record.CreateRecord(data[i], data[i], "PUT")
+		size += len(w)
 
 		file.Write(w)
 		file.Close()
 	}
 
-	return nil
+	return size, nil
 }
 
-func TestBucketsForEvenlyDistributedFiles(t *testing.T) {
-	err := startUp()
-	filePath := "../test"
-	if err != nil {
-		t.Fatalf("Could not start up the test")
+func TestBucketsForFiles(t *testing.T) {
+	tests := []struct {
+		testName string
+		data     []string
+	}{
+		{
+			testName: "Same size for each file",
+			data:     []string{"data", "data", "data", "data", "data", "data", "data", "data", "data", "data"},
+		},
+		{
+			testName: "Size increasing for each file",
+			data: []string{"data1", "data11", "data111", "data1111", "data11111",
+				"data111111", "data1111111", "data11111111", "data111111111", "data1111111111"},
+		},
+		{
+			testName: "Size decreasing for each file",
+			data: []string{"data1111111111", "data111111111", "data11111111", "data1111111", "data111111",
+				"data11111", "data1111", "data111", "data11", "data1"},
+		},
+		{
+			testName: "Random order of size for each file",
+			data: []string{"data111", "data1111", "data1", "data1111111", "data111111111",
+				"data11111", "data1111", "data1111111111", "data11", "data11111111"},
+		},
 	}
 
-	filePath = "../test"
-	files, err := os.ReadDir(filePath)
+	for _, test := range tests {
+		totalSize, err := startUp(test.data...)
+		filePath := "../test"
+		if err != nil {
+			t.Fatalf("Could not start up the test")
+		}
+		files, err := os.ReadDir(filePath)
 
-	if err != nil {
-		t.Fatalf("Could not make the file path")
-	}
+		if err != nil {
+			t.Fatalf("Could not make the file path")
+		}
 
-	buckets := sstable.ExportCompact(files)
-	totalSize := 310
-	average := totalSize / 10
+		buckets := sstable.ExportBuckets(files)
+		average := totalSize / 10
 
-	for key, bucket := range buckets {
+		for key, bucket := range buckets {
 
-		if len(bucket) == 0 {
-			//t.Logf("This bucket: %v is empty", key)
-		} else {
-			t.Logf("This bucket %v is %d length\n", key, len(bucket))
+			if len(bucket) != 0 {
+				t.Logf("This bucket %v is %d length\n", key, len(bucket))
 
-			for _, item := range bucket {
-				if float64(item.Size()) < float64(average)*float64(key) {
-					t.Errorf("This file should not be in this bucket:%v\nFile name:%s\tFile size:%d",
-						key, item.Name(), item.Size())
+				for _, item := range bucket {
+					if float64(item.Size()) < float64(average)*float64(key) {
+						t.Errorf("For test:%s\nThis file should not be in this bucket:%v\nFile name:%s\tFile size:%d",
+							test.testName,
+							key, item.Name(), item.Size())
+					}
 				}
-				//t.Logf("File %s is %d large\n", item.Name(), item.Size())
 			}
 		}
 	}
