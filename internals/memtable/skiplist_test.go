@@ -2,6 +2,9 @@ package memtable
 
 import (
 	"testing"
+	"time"
+
+	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 // --- helpers ---
@@ -55,10 +58,13 @@ func TestInsert_MultipleElements(t *testing.T) {
 	}
 }
 
-func TestInsert_UpdateExistingKey(t *testing.T) {
+func TestInsert_UpdateExistingKeyForDifferentTimesItWasInserted(t *testing.T) {
 	list := newList(t)
-	list.Insert("key", []byte("old"))
-	list.Insert("key", []byte("new"))
+	old, _ := record.CreateRecord("key", "old", "PUT")
+	time.Sleep(2 * time.Millisecond)
+	new, _ := record.CreateRecord("key", "new", "PUT")
+	list.Insert("key", old)
+	list.Insert("key", new)
 
 	// Size should not grow on update.
 	if list.size != 1 {
@@ -69,8 +75,33 @@ func TestInsert_UpdateExistingKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if string(val) != "new" {
-		t.Errorf("expected 'new', got %q", val)
+	if record.GetContents(val).Payload != record.GetContents(new).Payload {
+		t.Errorf("expected 'new', got %q\nTime for old:%v\nTime for new:%v",
+			val, record.GetContents(old).Timestamp, record.GetContents(new).Timestamp)
+
+	}
+}
+
+func TestInsert_UpdateExistingKeyWhenInsertedAtTheSameTime(t *testing.T) {
+	list := newList(t)
+	old, _ := record.CreateRecord("key", "old", "PUT")
+	new, _ := record.CreateRecord("key", "new", "PUT")
+	list.Insert("key", old)
+	list.Insert("key", new)
+
+	// Size should not grow on update.
+	if list.size != 1 {
+		t.Errorf("expected size 1 after update, got %d", list.size)
+	}
+
+	val, err := list.Search("key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if record.GetContents(val).Payload != record.GetContents(new).Payload {
+		t.Errorf("expected 'new', got %q\nTime for old:%v\nTime for new:%v",
+			val, record.GetContents(old).Timestamp, record.GetContents(new).Timestamp)
+
 	}
 }
 
@@ -265,6 +296,6 @@ func TestEmptyList_SizeAfterEmpty(t *testing.T) {
 	// behaviour — update if the implementation is fixed.
 	size := list.size // no panic expected
 	if size != 0 {
-		t.Error("Expected an empty list",size);
+		t.Error("Expected an empty list", size)
 	}
 }

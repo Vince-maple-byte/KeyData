@@ -3,13 +3,15 @@ package memtable
 import (
 	"errors"
 	"math/rand/v2"
+
+	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
-const MAX_LEVEL = 32; 
+const MAX_LEVEL = 32
 
 type Node struct {
-	key string
-	value []byte
+	key    string
+	value  []byte
 	levels []*Node
 }
 
@@ -20,108 +22,115 @@ type Skiplist struct {
 
 func CreateSkiplist() *Skiplist {
 	head := &Node{
-		key: "",
-		value: nil,
+		key:    "",
+		value:  nil,
 		levels: make([]*Node, MAX_LEVEL),
-	};
+	}
 	return &Skiplist{
 		head: head,
 		size: 0,
-	};
+	}
 }
 
 func (list *Skiplist) Search(key string) ([]byte, error) {
-  	curr := list.head;
-	var next *Node;
+	curr := list.head
+	var next *Node
 
-	for i := len(list.head.levels)-1; i >= 0; i-- {
-		
+	for i := len(list.head.levels) - 1; i >= 0; i-- {
+
 		for next = curr.levels[i]; next != nil && key > next.key; next = curr.levels[i] {
-			curr = next;
+			curr = next
 		}
 		if next != nil && next.key == key {
-			return next.value, nil;
+			return next.value, nil
 		}
-	} 
+	}
 
-	return nil, errors.New("Element doesn't exist");
+	return nil, errors.New("Element doesn't exist")
 }
 
 func (list *Skiplist) Insert(key string, value []byte) {
-	var update [MAX_LEVEL]*Node;
-	curr := list.head;
+	var update [MAX_LEVEL]*Node
+	curr := list.head
 
-	for i:= MAX_LEVEL-1; i >= 0; i-- {
+	for i := MAX_LEVEL - 1; i >= 0; i-- {
 		for curr.levels[i] != nil && key > curr.levels[i].key {
-			curr = curr.levels[i];
+			curr = curr.levels[i]
 		}
 
-		update[i] = curr;
+		update[i] = curr
 	}
-	
+
 	//This code block checks if the key is already inside of the skiplist
-	next := curr.levels[0];
+	// If the key is already inside then we can check for whichever key is the newest by time and then have that value in the skiplist
+	next := curr.levels[0]
 	if next != nil && next.key == key {
-		next.value = value;
-		return;
+		newTime := record.GetContents(value).Timestamp.UTC()
+		prevTime := record.GetContents(next.value).Timestamp.UTC()
+
+		if newTime.After(prevTime) || newTime.Equal(prevTime) {
+			next.value = value
+		}
+
+		return
 	}
 
 	newNode := &Node{
-		key: key, 
-		value: value,
+		key:    key,
+		value:  value,
 		levels: make([]*Node, randLevel()),
 	}
 
 	for i := 0; i < len(newNode.levels); i++ {
-		newNode.levels[i] = update[i].levels[i];
-		update[i].levels[i] = newNode;
+		newNode.levels[i] = update[i].levels[i]
+		update[i].levels[i] = newNode
 	}
 
-	list.size++;
+	list.size++
 }
 
-func (list *Skiplist) Delete(key string) ([]byte,error) {
-	deleteNode, err := list.searchNode(key);
+func (list *Skiplist) Delete(key string) ([]byte, error) {
+	deleteNode, err := list.searchNode(key)
 
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
-	update := make([]*Node, len(deleteNode.levels));
-	curr := list.head;
-	val := deleteNode.value;
+	update := make([]*Node, len(deleteNode.levels))
+	curr := list.head
+	val := deleteNode.value
 
-	for i:= len(update)-1; i>=0; i-- {
+	for i := len(update) - 1; i >= 0; i-- {
 		for curr.levels[i] != nil && key > curr.levels[i].key {
-    		curr = curr.levels[i]
-		}	
+			curr = curr.levels[i]
+		}
 
-		update[i] = curr;
+		update[i] = curr
 	}
 
-	for i := range(len(update))  {
-		update[i].levels[i] = deleteNode.levels[i];
+	for i := range len(update) {
+		update[i].levels[i] = deleteNode.levels[i]
 	}
-	
-	list.size--;
-	return val, nil;
+
+	list.size--
+	return val, nil
 }
 
 func (list Skiplist) searchNode(key string) (*Node, error) {
-	curr := list.head;
-	var next *Node;
+	curr := list.head
+	var next *Node
 
-	for i := len(list.head.levels)-1; i >= 0; i-- {
-		
+	for i := len(list.head.levels) - 1; i >= 0; i-- {
+
 		for next = curr.levels[i]; next != nil && key > next.key; next = curr.levels[i] {
-			curr = next;
+			curr = next
 		}
 		if next != nil && next.key == key {
-			return next, nil;
+			return next, nil
 		}
-	} 
+	}
 
-	return nil, errors.New("Element doesn't exist");
+	return nil, errors.New("Element doesn't exist")
 }
 
 func (list *Skiplist) EmptyList() {
@@ -134,31 +143,31 @@ func (list *Skiplist) EmptyList() {
 	// 	head: head,
 	// 	size: 0,
 	// };
-	list.head.key = "";
-	list.head.value = nil;
-	list.head.levels = make([]*Node, MAX_LEVEL);
+	list.head.key = ""
+	list.head.value = nil
+	list.head.levels = make([]*Node, MAX_LEVEL)
 
-	list.size = 0;
+	list.size = 0
 }
 
-func (list *Skiplist) EntireList() ([][]byte) {
-	curr := list.head.levels[0];
-	res := make([][]byte, list.size);
-	
-	for range(list.size) {
-		res = append(res, curr.value);
-		curr = curr.levels[0];
+func (list *Skiplist) EntireList() [][]byte {
+	curr := list.head.levels[0]
+	res := make([][]byte, list.size)
+
+	for range list.size {
+		res = append(res, curr.value)
+		curr = curr.levels[0]
 	}
 
-	return res;
+	return res
 }
 
 func randLevel() int {
-	var level int = 1;
+	var level int = 1
 
-	for(rand.IntN(2) == 1 && level < MAX_LEVEL){
-		level++;
+	for rand.IntN(2) == 1 && level < MAX_LEVEL {
+		level++
 	}
 
-	return level;
+	return level
 }
