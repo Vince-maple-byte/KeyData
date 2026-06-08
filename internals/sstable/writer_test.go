@@ -71,13 +71,8 @@ func TestBucketsForFiles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Could not start up the test")
 		}
-		files, err := os.ReadDir(filePath)
 
-		if err != nil {
-			t.Fatalf("Could not make the file path")
-		}
-
-		buckets := sstable.ExportBuckets(files)
+		buckets := sstable.ExportBuckets(filePath)
 		average := totalSize / 10
 
 		for key, bucket := range buckets {

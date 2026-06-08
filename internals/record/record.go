@@ -24,12 +24,12 @@ type Content struct {
 	Payload     string
 }
 
-func checkSum(data string) uint32 {
-	return crc32.ChecksumIEEE([]byte(data))
+func checkSum(payload string) uint32 {
+	return crc32.ChecksumIEEE([]byte(payload))
 }
 
-func ChecksumChecker(data []byte, checksum uint32) bool {
-	valid := crc32.ChecksumIEEE(data)
+func ChecksumChecker(payload []byte, checksum uint32) bool {
+	valid := crc32.ChecksumIEEE(payload)
 
 	if valid == checksum {
 		return true

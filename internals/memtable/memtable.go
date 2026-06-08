@@ -7,7 +7,7 @@ import (
 
 const MAX_SIZE = 3200
 
-type Memtable struct{
+type Memtable struct {
 	list *Skiplist
 	size int
 }
@@ -20,33 +20,33 @@ func CreateMemtable() *Memtable {
 }
 
 func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
-	record, err := record.CreateRecord(key, value, operation);
+	record, err := record.CreateRecord(key, value, operation)
 
 	if err != nil {
-		return false, err;
+		return false, err
 	}
 
-	memtable.list.Insert(key, record);
-	memtable.size += 1;
+	memtable.list.Insert(key, record)
+	memtable.size += 1
 
-	if(memtable.size >= MAX_SIZE) {
-		content := memtable.list.EntireList();
-		_, errF := sstable.WriteToFile(content)	
+	if memtable.size >= MAX_SIZE {
+		content := memtable.list.EntireList()
+		_, errF := sstable.WriteToFile(content)
 
 		if errF != nil {
-			return false, errF;
+			return false, errF
 		}
 
-		memtable.list.EmptyList();
-		memtable.size = 0;
-		
+		memtable.list.EmptyList()
+		memtable.size = 0
+
 	}
-	
-	return true, nil;
+
+	return true, nil
 }
 
 func (memtable *Memtable) Read(key string) ([]byte, error) {
-	record, err := memtable.list.Search(key);
+	record, err := memtable.list.Search(key)
 
 	if err != nil {
 		//Call the method to perform the file i/o operation for reads
@@ -54,15 +54,15 @@ func (memtable *Memtable) Read(key string) ([]byte, error) {
 		//If we still return an error we would return a nil/empty byte slice and a error
 	}
 
-	return record, nil;
+	return record, nil
 }
 
 func (memtable *Memtable) Get(key string) ([]byte, error) {
-	record, err := memtable.list.Search(key);
+	record, err := memtable.list.Search(key)
 
 	if err != nil {
-		return nil,err; 
+		return nil, err
 	}
 
-	return record, nil;
-} 
+	return record, nil
+}

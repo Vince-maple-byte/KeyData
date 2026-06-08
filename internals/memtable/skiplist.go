@@ -49,6 +49,7 @@ func (list *Skiplist) Search(key string) ([]byte, error) {
 	return nil, errors.New("Element doesn't exist")
 }
 
+// The value is the entire record including all of the information on the timestamp, etc.
 func (list *Skiplist) Insert(key string, value []byte) {
 	var update [MAX_LEVEL]*Node
 	curr := list.head

@@ -65,7 +65,7 @@ func WriteToFile(list [][]byte) (bool, error) {
 
 	file.Sync()
 
-	buckets(files)
+	//buckets(files)
 
 	return true, nil
 }
@@ -136,13 +136,16 @@ func fileOffset(contentList [][]byte) []uint64 {
 
 // We are going to be doing size based compaction for compacting these files
 // The amount of files that need to be a similar size
-func buckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
-	// min_threshold := 4
-	// max_threshold := 32
+// TODO: Need to make the bucket map into a persistent map that is used throughout the entire state of the
+// program.w
+func buckets(filePath string) (map[file_buckets][]fs.FileInfo, error) {
+	files, err := os.ReadDir(filePath)
+
+	if err != nil {
+		return nil, err
+	}
 	var average_size int64
 	var total_size int64
-	//var largest_size int64 = 0
-	//var min
 
 	buckets := make(map[file_buckets][]fs.FileInfo)
 	//
@@ -182,9 +185,87 @@ func buckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
 		}
 	}
 
-	return buckets
+	return buckets, nil
 }
 
-func ExportBuckets(files []os.DirEntry) map[file_buckets][]fs.FileInfo {
-	return buckets(files)
+// When we are doing the concurrency option. Compaction and the buckets will be done in a separate class,
+// and in it's own separate thread that will be run periodically every time interval that we decide
+func Compact(filePath string) error {
+	bucketMap, err := buckets(filePath)
+
+	if err != nil {
+		return err
+	}
+	minThreshold := 4
+	maxThreshold := 32
+
+	//Slight potential optimization: We can have this continue compacting each bucket of similar sizes,
+	// but we have to recalculate the average file size and bucket arrangement for Each of the files
+	for _, val := range bucketMap {
+		bucketSize := len(val)
+
+		if bucketSize >= minThreshold && bucketSize <= maxThreshold {
+			//compactMap := make(map[string][]byte, 0);
+			skiplist := MergeList()
+			for _, fileInfo := range val {
+				fileData, err := os.ReadFile(fileInfo.Name())
+
+				if err != nil {
+					return err
+				}
+
+				//We are going through each file and from there we will save each key/value pair record into a skiplist
+				for i := 0; i < len(fileData); i++ {
+					//header := fileData[i : i+21]
+
+					checksum := binary.BigEndian.Uint32(fileData[i+8 : i+12])
+
+					keySize := int(binary.BigEndian.Uint32(fileData[i+13 : i+17]))
+					payloadSize := int(binary.BigEndian.Uint32(fileData[i+17 : i+21]))
+
+					key := fileData[i+21 : i+keySize+21]
+					payload := fileData[i+keySize+21 : i+(keySize+21)+payloadSize]
+
+					//If the checksum is invalid, we ignore the rest of the file
+					if !record.ChecksumChecker(payload, checksum) {
+						break
+					}
+
+					skiplist.Insert(string(key), fileData[i:i+(keySize+21)+payloadSize])
+					i = i + (keySize + 21) + payloadSize
+				}
+			}
+
+			//We take the entire skiplist and write it into a new file
+			fileContents := skiplist.EntireList()
+
+			//Technically speaking we can just recall the write to file again to make the new file
+			// Since the Entire write operation is there.
+			// So I'm planning on calling the Compact function after the write to file function goes through in the Memtable class
+			_, err := WriteToFile(fileContents)
+
+			if err != nil {
+				return err
+			}
+
+			// Delete all of the old files once the new file is committed
+			for _, fileInfo := range val {
+				err := os.Remove(fileInfo.Name())
+
+				if err != nil {
+					return err
+				}
+			}
+			break
+		}
+
+	}
+
+	return nil
+}
+
+func ExportBuckets(filePath string) map[file_buckets][]fs.FileInfo {
+	result, _ := buckets(filePath)
+
+	return result
 }

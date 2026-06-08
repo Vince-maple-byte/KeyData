@@ -1,5 +1,10 @@
 package main
 
+import (
+	"github.com/Vince-maple-byte/KeyData/internals/memtable"
+	"github.com/Vince-maple-byte/KeyData/internals/sstable"
+)
+
 //"time"
 // "github.com/Vince-maple-byte/KeyData/internals/file"
 //"github.com/Vince-maple-byte/KeyData/internals/record"
@@ -18,9 +23,9 @@ time stamp: 8 bytes
 CRC32: 4 bytes
 Tombstone: 1 byte
 key size: 4 bytes
-payload size: 4 bytes
+payload size: 4 bytes -> The header of the record is 21 bytes long
 key: (key size) bytes
-payload: (payload size) bytes
+payload: (payload size) bytes -> The rest of the record is 21 + keySize + payloadSize bytes long
 
 Have it so that in the Write method after we are done adding the record into the file, make sure to add flush(), we update the index map with the key and byte offset
 
@@ -34,7 +39,8 @@ From there we can move on to SSTable, compaction, LSM Tables, and finally bloom 
 */
 
 func main() {
-	
-
-
+	//We need to use this interface here to avoid an import cycle between sstable and memtable
+	sstable.MergeList = func() sstable.ListMerger {
+		return memtable.CreateSkiplist()
+	}
 }
