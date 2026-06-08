@@ -37,6 +37,13 @@ func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
 			return false, errF
 		}
 
+		//For now, when running test we just replace the folder path as the test folder.
+		err = sstable.Compact("../data")
+
+		if err != nil {
+			return false, err
+		}
+
 		memtable.list.EmptyList()
 		memtable.size = 0
 
