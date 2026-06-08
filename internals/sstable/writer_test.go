@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
@@ -20,7 +21,7 @@ func startUp(data ...string) (int, error) {
 	size := 0
 	for i := range 10 {
 		targetDir := "../test"
-		name := fmt.Sprintf("%s_%d.txt", "testfile", i)
+		name := fmt.Sprintf("%s_%d.sst", "testfile", i)
 		fullPath := filepath.Join(targetDir, name)
 		file, err := os.Create(fullPath)
 
@@ -37,6 +38,14 @@ func startUp(data ...string) (int, error) {
 	}
 
 	return size, nil
+}
+
+func tearDown(filePath string) {
+	files, _ := os.ReadDir(filePath)
+
+	for _, file := range files {
+		os.Remove(filepath.Join(filePath, file.Name()))
+	}
 }
 
 func TestBucketsForFiles(t *testing.T) {
@@ -91,4 +100,52 @@ func TestBucketsForFiles(t *testing.T) {
 		}
 	}
 
+	tearDown("../test")
+}
+
+func TestCompactFilesForFiles(t *testing.T) {
+	data := []string{"data", "data", "data", "data", "data", "data", "data", "data", "data", "data"}
+
+	startUp(data...)
+
+	sstable.MergeList = func() sstable.ListMerger {
+		return memtable.CreateSkiplist()
+	}
+
+	err := sstable.Compact("../test")
+
+	if err != nil {
+		t.Errorf("Not able to complete the compaction\n Recieved this error code:\n%v", err)
+	}
+
+	files, err := os.ReadDir("../test")
+
+	if err != nil {
+		t.Fatalf("Not able to access the directory for testing: ../test")
+	}
+
+	if len(files) != 1 {
+		t.Errorf("Improper amount of files inside of the test directory:\nExpected: %d; Actual:%d", 1, len(files))
+	}
+
+	tearDown("../test")
+}
+
+func TestWriteToFile(t *testing.T) {
+	fileContents := make([][]byte, 0, 10)
+
+	for range 10 {
+		r, _ := record.CreateRecord("a", "1", "PUT")
+		fileContents = append(fileContents, r)
+	}
+
+	ok, err := sstable.WriteToFile(fileContents)
+
+	if err != nil {
+		t.Errorf("Error encountered: %v\n", err)
+	}
+
+	if !ok {
+		t.Errorf("Not able to create the file")
+	}
 }

@@ -153,7 +153,7 @@ func (list *Skiplist) EmptyList() {
 
 func (list *Skiplist) EntireList() [][]byte {
 	curr := list.head.levels[0]
-	res := make([][]byte, list.size)
+	res := make([][]byte, 0, list.size)
 
 	for range list.size {
 		res = append(res, curr.value)

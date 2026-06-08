@@ -2,8 +2,10 @@ package sstable
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,9 +26,9 @@ const (
 
 // TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
 func WriteToFile(list [][]byte) (bool, error) {
-	filepath := "../data"
+	filePath := "../test"
 	filename := ""
-	files, err := os.ReadDir(filepath)
+	files, err := os.ReadDir(filePath)
 
 	if err != nil {
 		return false, err
@@ -35,7 +37,11 @@ func WriteToFile(list [][]byte) (bool, error) {
 	if len(files) < 1 {
 		filename = "kd_1.sst"
 	} else {
-		index, err := strconv.Atoi(strings.Split(files[len(files)-1].Name(), "_")[1])
+		//This gives us something like 9.txt
+		str := strings.Split(files[len(files)-1].Name(), "_")[1]
+		//Spliting it by the . and returning the first element will give us the 9 as a string
+		str = strings.Split(str, ".")[0]
+		index, err := strconv.Atoi(str)
 
 		if err != nil {
 			return false, err
@@ -43,19 +49,19 @@ func WriteToFile(list [][]byte) (bool, error) {
 		filename = "kd_" + strconv.Itoa(index+1) + ".sst"
 	}
 
-	file, err := os.Create(filename)
+	file, err := os.Create(filepath.Join(filePath, filename))
 
 	if err != nil {
 		return false, err
 	}
 
-	contents := list
-	offset := fileOffset(contents)
-	index := createIndexBlock(contents, offset)
+	//contents := list
+	offset := fileOffset(list)
+	index := createIndexBlock(list, offset)
 
-	contents = append(contents, index)
+	list = append(list, index)
 
-	content := slices.Concat(contents...)
+	content := slices.Concat(list...)
 
 	_, err = file.Write(content)
 
@@ -101,16 +107,27 @@ func WriteToFile(list [][]byte) (bool, error) {
 */
 
 func createIndexBlock(contentList [][]byte, offset []uint64) []byte {
-	index := make([]byte, 0, INDEX_BLOCK*16)
+	index := make([]byte, 0, INDEX_BLOCK*160)
 
-	for i := 0; i < len(contentList); i = i + (len(contentList) / INDEX_BLOCK) {
-		contents := record.GetContents(contentList[i])
+	if len(contentList) < INDEX_BLOCK*160 {
+		contents := record.GetContents(contentList[0])
 
 		index = binary.BigEndian.AppendUint32(index, contents.Keysize)
 
 		index = append(index, contents.Key...)
 
-		index = binary.BigEndian.AppendUint64(index, offset[i])
+		index = binary.BigEndian.AppendUint64(index, offset[0])
+	} else {
+		for i := 0; i < len(contentList); i = i + (len(contentList) / INDEX_BLOCK) {
+			fmt.Println(i)
+			contents := record.GetContents(contentList[i])
+
+			index = binary.BigEndian.AppendUint32(index, contents.Keysize)
+
+			index = append(index, contents.Key...)
+
+			index = binary.BigEndian.AppendUint64(index, offset[i])
+		}
 	}
 
 	var size uint64 = uint64(len(index))
@@ -208,14 +225,15 @@ func Compact(filePath string) error {
 			//compactMap := make(map[string][]byte, 0);
 			skiplist := MergeList()
 			for _, fileInfo := range val {
-				fileData, err := os.ReadFile(fileInfo.Name())
+
+				fileData, err := os.ReadFile(filepath.Join(filePath, fileInfo.Name()))
 
 				if err != nil {
 					return err
 				}
 
 				//We are going through each file and from there we will save each key/value pair record into a skiplist
-				for i := 0; i < len(fileData); i++ {
+				for i := 0; i < len(fileData); {
 					//header := fileData[i : i+21]
 
 					checksum := binary.BigEndian.Uint32(fileData[i+8 : i+12])
@@ -233,6 +251,7 @@ func Compact(filePath string) error {
 
 					skiplist.Insert(string(key), fileData[i:i+(keySize+21)+payloadSize])
 					i = i + (keySize + 21) + payloadSize
+
 				}
 			}
 
@@ -250,7 +269,7 @@ func Compact(filePath string) error {
 
 			// Delete all of the old files once the new file is committed
 			for _, fileInfo := range val {
-				err := os.Remove(fileInfo.Name())
+				err := os.Remove(filepath.Join(filePath, fileInfo.Name()))
 
 				if err != nil {
 					return err
