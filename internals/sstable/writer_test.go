@@ -1,6 +1,7 @@
 package sstable_test
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,23 +19,31 @@ func TestCheck(t *testing.T) {
 }
 
 func startUp(data ...string) (int, error) {
+	sstable.MergeList = func() sstable.ListMerger {
+		return memtable.CreateSkiplist()
+	}
+
 	size := 0
 	for i := range 10 {
-		targetDir := "../test"
-		name := fmt.Sprintf("%s_%d.sst", "testfile", i)
-		fullPath := filepath.Join(targetDir, name)
-		file, err := os.Create(fullPath)
+		// targetDir := "../test"
+		// name := fmt.Sprintf("%s_%d.sst", "testfile", i)
+		// fullPath := filepath.Join(targetDir, name)
+		// file, err := os.Create(fullPath)
 
-		if err != nil {
-			return 0, err
-		}
+		// if err != nil {
+		// 	return 0, err
+		// }
 
 		//This is 31 bytes long for the even method and the increasing method will be +1
 		w, _ := record.CreateRecord(data[i], data[i], "PUT")
 		size += len(w)
+		sstable.MergeList().Insert(data[i], w)
+	}
 
-		file.Write(w)
-		file.Close()
+	_, err := sstable.WriteToFile(sstable.MergeList().EntireList())
+
+	if err != nil {
+		return 0, nil
 	}
 
 	return size, nil
@@ -45,6 +54,7 @@ func tearDown(filePath string) {
 
 	for _, file := range files {
 		os.Remove(filepath.Join(filePath, file.Name()))
+
 	}
 }
 
@@ -103,13 +113,30 @@ func TestBucketsForFiles(t *testing.T) {
 	tearDown("../test")
 }
 
-func TestCompactFilesForFiles(t *testing.T) {
+func TestCompactFiles(t *testing.T) {
 	data := []string{"data", "data", "data", "data", "data", "data", "data", "data", "data", "data"}
 
-	startUp(data...)
+	//startUp(data...)
 
 	sstable.MergeList = func() sstable.ListMerger {
 		return memtable.CreateSkiplist()
+	}
+
+	//size := 0
+	for range 10 {
+		file := make([][]byte, 0, 10)
+		for i := range 10 {
+			w, _ := record.CreateRecord(data[i], data[i], "PUT")
+			file = append(file, w)
+		}
+		_, err := sstable.WriteToFile(file)
+
+		t.Logf("Size: %d", len(file))
+
+		if err != nil || len(file) == 0 {
+			t.Fatalf("Not to able properly make the file: size=%d", len(file))
+		}
+
 	}
 
 	err := sstable.Compact("../test")
@@ -148,4 +175,74 @@ func TestWriteToFile(t *testing.T) {
 	if !ok {
 		t.Errorf("Not able to create the file")
 	}
+
+	file, _ := os.Open("../test/kd_1.sst")
+	info, _ := file.Stat()
+
+	if info.Size() == 0 {
+		t.Error("Did not populate file")
+	}
+
+	tearDown("../test")
+}
+
+func TestFooter(t *testing.T) {
+	fileContents := make([][]byte, 0, 32)
+
+	for i := range 32 {
+		c, _ := record.CreateRecord(fmt.Sprintf("d%v", i), fmt.Sprintf("d%v", i), "PUT")
+		fileContents = append(fileContents, c)
+	}
+
+	_, err := sstable.WriteToFile(fileContents)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	file, err := os.Open("../test/kd_1.sst")
+	//defer file.Close()
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	//fmt.Println()
+
+	footer := make([]byte, 24)
+	fileInfo, _ := file.Stat()
+	size := fileInfo.Size()
+	fmt.Println(int64(size - 24))
+	_, err = file.ReadAt(footer, int64(size-24))
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if binary.BigEndian.Uint64(footer[:8]) != uint64(0) {
+		t.Errorf("Footer saved incorrect offset for the start of the file:%d", binary.BigEndian.Uint64(footer[:8]))
+	}
+
+	// //The first offset for the index block should always return 0
+	// //indexBlock := binary.BigEndian.Uint64(footer[8:16])
+	firstKey := make([]byte, 4)
+	file.ReadAt(firstKey, int64(binary.BigEndian.Uint64(footer[8:16])))
+	keySize := binary.BigEndian.Uint32(firstKey)
+	key := make([]byte, keySize)
+	file.ReadAt(key, int64(binary.BigEndian.Uint64(footer[8:16])+4))
+	offset := make([]byte, 8)
+	file.ReadAt(offset, int64(binary.BigEndian.Uint64(footer[8:16])+4+uint64(keySize)))
+	keyOffset := binary.BigEndian.Uint64(offset)
+
+	//keySize := binary.BigEndian.Uint64();
+	if keyOffset != uint64(0) {
+		t.Errorf("Footer saved incorrect offset for the start of the index block:%d", binary.BigEndian.Uint64(footer[8:16]))
+	}
+	fmt.Println(len(footer))
+	if binary.BigEndian.Uint64(footer[16:24]) != uint64(0xDEADBEEFDEADBEEF) {
+		t.Errorf("Footer saved incorrect magic number: %v", binary.BigEndian.Uint64(footer[16:24]))
+	}
+
+	file.Close()
+	tearDown("../test")
 }
