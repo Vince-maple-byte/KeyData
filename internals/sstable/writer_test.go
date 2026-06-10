@@ -12,38 +12,22 @@ import (
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
-func TestCheck(t *testing.T) {
-	if 2+2 == 5 {
-		t.Error()
-	}
-}
-
 func startUp(data ...string) (int, error) {
-	sstable.MergeList = func() sstable.ListMerger {
-		return memtable.CreateSkiplist()
-	}
 
 	size := 0
-	for i := range 10 {
-		// targetDir := "../test"
-		// name := fmt.Sprintf("%s_%d.sst", "testfile", i)
-		// fullPath := filepath.Join(targetDir, name)
-		// file, err := os.Create(fullPath)
+	for range 10 {
+		file := make([][]byte, 0, 10)
+		for i := range 10 {
+			w, _ := record.CreateRecord(data[i], data[i], "PUT")
+			file = append(file, w)
+		}
+		_, err := sstable.WriteToFile(file)
 
-		// if err != nil {
-		// 	return 0, err
-		// }
+		if err != nil {
+			return 0, err
+		}
+		size++
 
-		//This is 31 bytes long for the even method and the increasing method will be +1
-		w, _ := record.CreateRecord(data[i], data[i], "PUT")
-		size += len(w)
-		sstable.MergeList().Insert(data[i], w)
-	}
-
-	_, err := sstable.WriteToFile(sstable.MergeList().EntireList())
-
-	if err != nil {
-		return 0, nil
 	}
 
 	return size, nil
@@ -87,7 +71,7 @@ func TestBucketsForFiles(t *testing.T) {
 	for _, test := range tests {
 		totalSize, err := startUp(test.data...)
 		filePath := "../test"
-		if err != nil {
+		if err != nil || totalSize == 0 {
 			t.Fatalf("Could not start up the test")
 		}
 
@@ -183,6 +167,7 @@ func TestWriteToFile(t *testing.T) {
 		t.Error("Did not populate file")
 	}
 
+	file.Close()
 	tearDown("../test")
 }
 
