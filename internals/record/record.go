@@ -24,18 +24,21 @@ type Content struct {
 	Payload     string
 }
 
-func checkSum(payload string) uint32 {
-	return crc32.ChecksumIEEE([]byte(payload))
+func checkSum(key, payload []byte, timestamp uint64) uint32 {
+	buf := make([]byte, 16+len(key)+len(payload))
+
+	binary.BigEndian.PutUint64(buf[0:8], timestamp)
+	binary.BigEndian.PutUint32(buf[8:12], uint32(len(key)))
+	binary.BigEndian.PutUint32(buf[12:16], uint32(len(payload)))
+
+	copy(buf[16:], key)
+	copy(buf[16+len(key):], payload)
+
+	return crc32.ChecksumIEEE(buf)
 }
 
-func ChecksumChecker(payload []byte, checksum uint32) bool {
-	valid := crc32.ChecksumIEEE(payload)
-
-	if valid == checksum {
-		return true
-	} else {
-		return false
-	}
+func ChecksumChecker(key, payload []byte, timestamp uint64, checksum uint32) bool {
+	return checkSum(key, payload, timestamp) == checksum
 }
 
 func createTimeStamp() int64 {
@@ -64,7 +67,7 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 	//fmt.Println(len(b), time);
 
 	//Remember to use BigEndian for reverting it back to a uint32
-	b = binary.BigEndian.AppendUint32(b, checkSum(payload))
+	b = binary.BigEndian.AppendUint32(b, checkSum([]byte(key), []byte(payload), uint64(time)))
 
 	//We are adding the tombstone value into the record here
 	var Tombstone uint8

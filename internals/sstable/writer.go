@@ -3,7 +3,6 @@ package sstable
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -125,7 +124,6 @@ func createIndexBlock(contentList [][]byte, offset []uint64) []byte {
 		index = binary.BigEndian.AppendUint64(index, offset[0])
 	} else {
 		for i := 0; i < len(contentList); i = i + (len(contentList) / INDEX_BLOCK) {
-			fmt.Println(i)
 			contents := record.GetContents(contentList[i])
 
 			index = binary.BigEndian.AppendUint32(index, contents.Keysize)
@@ -260,6 +258,7 @@ func Compact(filePath string) error {
 				//We are going through each file and from there we will save each key/value pair record into a skiplist
 				for i := 0; i < int(fileBlockEnds); {
 					//header := fileData[i : i+21]
+					time := fileData[i : i+8]
 
 					checksum := binary.BigEndian.Uint32(fileData[i+8 : i+12])
 
@@ -270,7 +269,7 @@ func Compact(filePath string) error {
 					payload := fileData[i+keySize+21 : i+(keySize+21)+payloadSize]
 
 					//If the checksum is invalid, we ignore the rest of the file
-					if !record.ChecksumChecker(payload, checksum) {
+					if !record.ChecksumChecker(key, payload, binary.BigEndian.Uint64(time), checksum) {
 						break
 					}
 
@@ -294,7 +293,6 @@ func Compact(filePath string) error {
 
 			// Delete all of the old files once the new file is committed
 			for _, fileInfo := range val {
-				fmt.Println(filepath.Join(filePath, fileInfo.Name()))
 				err := os.Remove(filepath.Join(filePath, fileInfo.Name()))
 
 				if err != nil {

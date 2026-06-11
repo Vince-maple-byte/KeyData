@@ -192,12 +192,9 @@ func TestFooter(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	//fmt.Println()
-
 	footer := make([]byte, 24)
 	fileInfo, _ := file.Stat()
 	size := fileInfo.Size()
-	fmt.Println(int64(size - 24))
 	_, err = file.ReadAt(footer, int64(size-24))
 
 	if err != nil {
@@ -208,22 +205,21 @@ func TestFooter(t *testing.T) {
 		t.Errorf("Footer saved incorrect offset for the start of the file:%d", binary.BigEndian.Uint64(footer[:8]))
 	}
 
-	// //The first offset for the index block should always return 0
-	// //indexBlock := binary.BigEndian.Uint64(footer[8:16])
-	firstKey := make([]byte, 4)
-	file.ReadAt(firstKey, int64(binary.BigEndian.Uint64(footer[8:16])))
-	keySize := binary.BigEndian.Uint32(firstKey)
-	key := make([]byte, keySize)
-	file.ReadAt(key, int64(binary.BigEndian.Uint64(footer[8:16])+4))
+	indexBlockLoc := make([]byte, 8)
+	file.ReadAt(indexBlockLoc, int64(binary.BigEndian.Uint64(footer[8:16])))
+	keySize := make([]byte, 4)
+
+	file.ReadAt(keySize, int64(binary.BigEndian.Uint64(footer[8:16])))
+	key := make([]byte, int64(binary.BigEndian.Uint32(keySize)))
+	file.ReadAt(key, int64(binary.BigEndian.Uint64(footer[8:16]))+4)
 	offset := make([]byte, 8)
-	file.ReadAt(offset, int64(binary.BigEndian.Uint64(footer[8:16])+4+uint64(keySize)))
+	file.ReadAt(offset, int64(binary.BigEndian.Uint64(footer[8:16])+4+uint64(binary.BigEndian.Uint32(keySize))))
 	keyOffset := binary.BigEndian.Uint64(offset)
 
 	//keySize := binary.BigEndian.Uint64();
-	if keyOffset != uint64(0) {
+	if keyOffset != uint64(0) || string(key) != "d0" {
 		t.Errorf("Footer saved incorrect offset for the start of the index block:%d", binary.BigEndian.Uint64(footer[8:16]))
 	}
-	fmt.Println(len(footer))
 	if binary.BigEndian.Uint64(footer[16:24]) != uint64(0xDEADBEEFDEADBEEF) {
 		t.Errorf("Footer saved incorrect magic number: %v", binary.BigEndian.Uint64(footer[16:24]))
 	}

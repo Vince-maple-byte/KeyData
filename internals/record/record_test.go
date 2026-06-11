@@ -77,21 +77,48 @@ func TestRecordCheckSum(t *testing.T) {
 			key:       "a",
 			payload:   "abc",
 			operation: "PUT",
-			expected:  crc32.ChecksumIEEE([]byte("abc")),
+			expected: func() uint32 {
+				data, _ := record.CreateRecord("a", "abc", "PUT")
+				f := make([]byte, 20)
+				copy(f[0:8], data[:8])
+				binary.BigEndian.PutUint32(f[8:12], uint32(len("a")))
+				binary.BigEndian.PutUint32(f[12:16], uint32(len("abc")))
+				copy(f[16:17], []byte("a"))
+				copy(f[17:], []byte("abc"))
+				return crc32.ChecksumIEEE(f)
+			}(),
 		},
 		{
 			testName:  "Test 2",
 			key:       "a",
 			payload:   "",
 			operation: "DELETE",
-			expected:  crc32.ChecksumIEEE([]byte("")),
+			expected: func() uint32 {
+				data, _ := record.CreateRecord("a", "", "PUT")
+				f := make([]byte, 17)
+				copy(f[0:8], data[:8])
+				binary.BigEndian.PutUint32(f[8:12], uint32(len("a")))
+				binary.BigEndian.PutUint32(f[12:16], uint32(len("")))
+				copy(f[16:17], []byte("a"))
+				copy(f[17:], []byte(""))
+				return crc32.ChecksumIEEE(f)
+			}(),
 		},
 		{
 			testName:  "Test 3",
 			key:       "a",
 			payload:   "a",
 			operation: "PUT",
-			expected:  crc32.ChecksumIEEE([]byte("a")),
+			expected: func() uint32 {
+				data, _ := record.CreateRecord("a", "a", "PUT")
+				f := make([]byte, 18)
+				copy(f[0:8], data[:8])
+				binary.BigEndian.PutUint32(f[8:12], uint32(len("a")))
+				binary.BigEndian.PutUint32(f[12:16], uint32(len("a")))
+				copy(f[16:17], []byte("a"))
+				copy(f[17:], []byte("a"))
+				return crc32.ChecksumIEEE(f)
+			}(),
 		},
 	}
 
@@ -106,7 +133,7 @@ func TestRecordCheckSum(t *testing.T) {
 		checksum := binary.BigEndian.Uint32(record[8:12])
 
 		if checksum != test.expected {
-			t.Errorf("incorrect checksum for %v", test.testName)
+			t.Errorf("incorrect checksum for %v:\nExpected checksum %v\nActual checksum %v", test.testName, test.expected, checksum)
 		}
 	}
 }
