@@ -37,44 +37,58 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	}
 
 	//Getting the index block offset
-	indexBlockByte := make([]byte, 8)
-	file.ReadAt(indexBlockByte, int64(binary.BigEndian.Uint64(footer[8:16])))
-	indexBlockLoc := binary.BigEndian.Uint64(indexBlockByte)
-	lowKeyOffset := indexBlockLoc
-	highKeyOffset := indexBlockLoc
+	indexBlockLoc := binary.BigEndian.Uint64(footer[8:16])
+	lowKeyOffset := uint64(0)
+	highKeyOffset := uint64(0)
 
-	for i := indexBlockLoc; i < uint64(fileInfo.Size()-24); {
-		lowKeyOffset = i
+	for i := indexBlockLoc; i <= uint64(fileInfo.Size()-24); {
+		//highKeyOffset = i
 		keySize := make([]byte, 4)
 		file.ReadAt(keySize, int64(i))
 		offsetKey := make([]byte, int64(binary.BigEndian.Uint32(keySize)))
 		file.ReadAt(offsetKey, int64(i)+4)
-		offset := make([]byte, 8)
-		file.ReadAt(offset, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
-		//keyOffset := binary.BigEndian.Uint64(offset)
+		//This gives us the location of the offset where it is saved in the data portion of the file
+		offsetLoc := make([]byte, 8)
+		file.ReadAt(offsetLoc, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
+		keyOffset := binary.BigEndian.Uint64(offsetLoc)
 
+		//Go to the next location in the index block
 		i = i + 4 + uint64(binary.BigEndian.Uint32(keySize)) + 8
-		if key <= string(offsetKey) {
+
+		if key == string(offsetKey) {
+			curr := make([]byte, 21)
+			file.ReadAt(curr, int64(keyOffset))
+			payloadSize := binary.BigEndian.Uint32(curr[17:21])
+
+			entireRecord := make([]byte, 21+binary.BigEndian.Uint32(keySize)+payloadSize)
+			file.ReadAt(entireRecord, int64(keyOffset))
+			return entireRecord, nil
+		}
+
+		lowKeyOffset = highKeyOffset
+		highKeyOffset = keyOffset
+
+		if key < string(offsetKey) {
 			break
-		} else {
-			lowKeyOffset = highKeyOffset
-			highKeyOffset = i
 		}
 	}
 
 	if lowKeyOffset == highKeyOffset {
-		return nil, errors.New("Key is not inside of the file")
+		return nil, errors.New("Key is not inside of the file: Key is larger than any key in the file")
 	}
 
 	//TODO: Make the range to
-	indexBlockRange := make([]byte, highKeyOffset-lowKeyOffset)
-	file.ReadAt(indexBlockRange, int64(lowKeyOffset))
 
 	for i := lowKeyOffset; i < highKeyOffset; {
-		keySize := binary.BigEndian.Uint32(indexBlockRange[i+13 : i+17])
-		payloadSize := binary.BigEndian.Uint32(indexBlockRange[i+17 : i+21])
+		curr := make([]byte, 21)
+		file.ReadAt(curr, int64(i))
+		keySize := binary.BigEndian.Uint32(curr[13:17])
+		payloadSize := binary.BigEndian.Uint32(curr[17:21])
 
-		currRecord := record.GetContents(indexBlockRange[i : i+21+uint64(keySize)+uint64(payloadSize)])
+		entireRecord := make([]byte, 21+keySize+payloadSize)
+		file.ReadAt(entireRecord, int64(i))
+
+		currRecord := record.GetContents(entireRecord)
 
 		if !record.ChecksumChecker(
 			[]byte(currRecord.Key),
@@ -85,7 +99,11 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 		}
 
 		if currRecord.Key == key {
-			return indexBlockRange[i : i+21+uint64(keySize)+uint64(payloadSize)], nil
+			return entireRecord, nil
+		}
+
+		if currRecord.Key > key {
+			break
 		}
 
 		i += 21 + uint64(keySize) + uint64(payloadSize)

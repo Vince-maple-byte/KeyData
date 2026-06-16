@@ -3,6 +3,7 @@ package sstable
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -114,14 +115,15 @@ func WriteToFile(list [][]byte) (bool, error) {
 func createIndexBlock(contentList [][]byte, offset []uint64) []byte {
 	index := make([]byte, 0, INDEX_BLOCK*160)
 
+	//I made this specific change for the index block since in the
 	if len(contentList) < INDEX_BLOCK*160 {
-		contents := record.GetContents(contentList[0])
+		contents := record.GetContents(contentList[len(contentList)/2])
 
 		index = binary.BigEndian.AppendUint32(index, contents.Keysize)
 
 		index = append(index, contents.Key...)
 
-		index = binary.BigEndian.AppendUint64(index, offset[0])
+		index = binary.BigEndian.AppendUint64(index, offset[len(offset)/2])
 	} else {
 		for i := 0; i < len(contentList); i = i + (len(contentList) / INDEX_BLOCK) {
 			contents := record.GetContents(contentList[i])
@@ -247,13 +249,17 @@ func Compact(filePath string) error {
 			for _, fileInfo := range val {
 
 				fileData, err := os.ReadFile(filepath.Join(filePath, fileInfo.Name()))
-				//We do this so that we only take into account the file block, and not the index or footer
-				footer := fileData[len(fileData)-24:]
-				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])
 
 				if err != nil {
 					return err
 				}
+				//We do this so that we only take into account the file block, and not the index or footer
+				footer := fileData[len(fileData)-24:]
+				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
+					//os.Remove(fileInfo.Name())
+					return fmt.Errorf("invalid footer magic")
+				}
+				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])
 
 				//We are going through each file and from there we will save each key/value pair record into a skiplist
 				for i := 0; i < int(fileBlockEnds); {
@@ -311,4 +317,12 @@ func ExportBuckets(filePath string) map[file_buckets][]fs.FileInfo {
 	result, _ := buckets(filePath)
 
 	return result
+}
+
+func ExportFooter(list [][]byte) ([]byte, error) {
+	return createFooter(list)
+}
+
+func ExportFileOffset(contentList [][]byte) []uint64 {
+	return fileOffset(contentList)
 }
