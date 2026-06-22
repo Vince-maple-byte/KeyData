@@ -19,7 +19,7 @@ import (
 // If the key is not inside of the range in which we stated before, than we can just return nil and an error message
 // stating that the key can't be found
 func ReadFromFile(filePath, key string) ([]byte, error) {
-	file, err := os.Open(filepath.Join("../test", filePath))
+	file, err := os.Open(filepath.Join("../data", filePath))
 
 	defer file.Close()
 	if err != nil {
@@ -42,7 +42,6 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	highKeyOffset := uint64(0)
 
 	for i := indexBlockLoc; i <= uint64(fileInfo.Size()-24); {
-		//highKeyOffset = i
 		keySize := make([]byte, 4)
 		file.ReadAt(keySize, int64(i))
 		offsetKey := make([]byte, int64(binary.BigEndian.Uint32(keySize)))
@@ -110,4 +109,22 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	}
 
 	return nil, errors.New("Key could not be found")
+}
+
+func ReadFromAllFiles(key string) ([]byte, error) {
+	fileDir, err := os.ReadDir("../data")
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range fileDir {
+		res, err := ReadFromFile(file.Name(), key)
+
+		if err == nil {
+			return res, nil
+		}
+	}
+
+	return nil, errors.New("The key does not exist in any of the files")
 }
