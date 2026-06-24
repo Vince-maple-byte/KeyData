@@ -5,9 +5,17 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
+
+type SSTFile struct {
+	Generation int
+	FileName   string
+}
 
 // How to read from the file
 // We first checking the magic number inside of the footer to see if the file is valid
@@ -19,7 +27,7 @@ import (
 // If the key is not inside of the range in which we stated before, than we can just return nil and an error message
 // stating that the key can't be found
 func ReadFromFile(filePath, key string) ([]byte, error) {
-	file, err := os.Open(filepath.Join("../data", filePath))
+	file, err := os.Open(filepath.Join("../test", filePath))
 
 	defer file.Close()
 	if err != nil {
@@ -112,14 +120,33 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 }
 
 func ReadFromAllFiles(key string) ([]byte, error) {
-	fileDir, err := os.ReadDir("../data")
+	fileDir, err := os.ReadDir("../test")
+
+	var files []SSTFile
 
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range fileDir {
-		res, err := ReadFromFile(file.Name(), key)
+		gen, err := parseGeneration(file.Name())
+
+		if err != nil {
+			continue
+		}
+
+		files = append(files, SSTFile{
+			Generation: gen,
+			FileName:   file.Name(),
+		})
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Generation < files[j].Generation
+	})
+
+	for _, file := range files {
+		res, err := ReadFromFile(file.FileName, key)
 
 		if err == nil {
 			return res, nil
@@ -127,4 +154,12 @@ func ReadFromAllFiles(key string) ([]byte, error) {
 	}
 
 	return nil, errors.New("The key does not exist in any of the files")
+}
+
+func parseGeneration(fileName string) (int, error) {
+	str := strings.Split(fileName, "_")[1]
+	str = strings.Split(str, ".")[0]
+	idx, err := strconv.Atoi(str)
+
+	return idx, err
 }

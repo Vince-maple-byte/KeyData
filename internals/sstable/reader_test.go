@@ -146,3 +146,27 @@ func TestReadFile(t *testing.T) {
 
 	}
 }
+
+func TestReadFromAllFiles(t *testing.T) {
+	for i := range 10 {
+		d := memtable.CreateSkiplist()
+		for i := range 3000 * (i + 1) {
+
+			r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
+			d.Insert(strconv.Itoa(i), r)
+		}
+		_, err := sstable.WriteToFile(d.EntireList())
+
+		if err != nil {
+			t.Fatalf("Error in writing the file: %s", err.Error())
+		}
+	}
+
+	_, err := sstable.ReadFromAllFiles("29994")
+
+	if err != nil {
+		t.Errorf("Was not able to find the valid record")
+	}
+
+	tearDown("../test")
+}
