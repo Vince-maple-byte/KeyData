@@ -1,8 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"net"
+
 	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
+	"github.com/Vince-maple-byte/KeyData/network"
+	"google.golang.org/grpc"
 )
 
 //"time"
@@ -43,4 +49,26 @@ func main() {
 	sstable.MergeList = func() sstable.ListMerger {
 		return memtable.CreateSkiplist()
 	}
+
+	mem := memtable.CreateMemtable()
+
+	network.NetworkMemtable = func() network.InternalMemtable {
+		return mem
+	}
+
+	port := 5773
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	var opts []grpc.ServerOption
+
+	grpcServer := grpc.NewServer(opts...)
+	network.pb.RegisterDataServer(grpcServer, newServer())
+	//pb.RegisterDataServer(grpcServer, newServer())
+	//
+	grpcServer.Server(lis)
 }

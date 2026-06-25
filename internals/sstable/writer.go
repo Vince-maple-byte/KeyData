@@ -256,7 +256,7 @@ func Compact(filePath string) error {
 				//We do this so that we only take into account the file block, and not the index or footer
 				footer := fileData[len(fileData)-24:]
 				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
-					//os.Remove(fileInfo.Name())
+					os.Remove(filepath.Join(filePath, fileInfo.Name()))
 					return fmt.Errorf("invalid footer magic")
 				}
 				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])

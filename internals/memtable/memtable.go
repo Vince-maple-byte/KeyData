@@ -52,18 +52,6 @@ func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
 	return true, nil
 }
 
-func (memtable *Memtable) Read(key string) ([]byte, error) {
-	record, err := memtable.list.Search(key)
-
-	if err != nil {
-		//Call the method to perform the file i/o operation for reads
-
-		//If we still return an error we would return a nil/empty byte slice and a error
-	}
-
-	return record, nil
-}
-
 func (memtable *Memtable) Get(key string) ([]byte, error) {
 	record, err := memtable.list.Search(key)
 

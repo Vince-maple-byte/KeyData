@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Vince-maple-byte/KeyData/network";
+
+service Data {
+  rpc Search(SearchRequest) returns (SearchResponse) {}
+  rpc Create(CreateRequest) returns (CreateResponse) {}
+}
+
+message CreateRequest {
+  string operation = 1;
+  string key = 2;
+  string payload = 3;
+}
+
+message CreateResponse {
+  bool success = 1;
+}
+
+message SearchRequest {
+  string key = 2;
+}
+
+message SearchResponse {
+  google.protobuf.Timestamp created_at = 1;
+  string key = 2;
+  string payload = 3;
+}

@@ -48,11 +48,11 @@ func TestWriteForMultipleEntriesInMemtable(t *testing.T) {
 
 }
 
-func TestReadForMemtable(t *testing.T) {
+func TestGetForMemtable(t *testing.T) {
 	mem := CreateMemtable()
 
 	mem.Write("key", "val", "PUT")
-	actual, err := mem.Read("key")
+	actual, err := mem.Get("key")
 
 	if err != nil {
 		t.Errorf("The read was not able to complete (could mean that the key was not saved into the memtable)")
