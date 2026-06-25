@@ -27,7 +27,7 @@ type SSTFile struct {
 // If the key is not inside of the range in which we stated before, than we can just return nil and an error message
 // stating that the key can't be found
 func ReadFromFile(filePath, key string) ([]byte, error) {
-	file, err := os.Open(filepath.Join("../test", filePath))
+	file, err := os.Open(filepath.Join("../data", filePath))
 
 	defer file.Close()
 	if err != nil {
@@ -120,7 +120,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 }
 
 func ReadFromAllFiles(key string) ([]byte, error) {
-	fileDir, err := os.ReadDir("../test")
+	fileDir, err := os.ReadDir("../data")
 
 	var files []SSTFile
 
@@ -129,7 +129,7 @@ func ReadFromAllFiles(key string) ([]byte, error) {
 	}
 
 	for _, file := range fileDir {
-		gen, err := parseGeneration(file.Name())
+		gen, err := parseGeneration(filepath.Join("../data", file.Name()))
 
 		if err != nil {
 			continue
@@ -149,6 +149,12 @@ func ReadFromAllFiles(key string) ([]byte, error) {
 		res, err := ReadFromFile(file.FileName, key)
 
 		if err == nil {
+			contents := record.GetContents(res)
+
+			if contents.Tombstone != 0 {
+				return nil, errors.New("Key/Value pair doesn't exist")
+			}
+
 			return res, nil
 		}
 	}

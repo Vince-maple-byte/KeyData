@@ -1,6 +1,8 @@
 package memtable
 
 import (
+	"errors"
+
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
@@ -53,11 +55,17 @@ func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
 }
 
 func (memtable *Memtable) Get(key string) ([]byte, error) {
-	record, err := memtable.list.Search(key)
+	records, err := memtable.list.Search(key)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return record, nil
+	content := record.GetContents(records)
+
+	if content.Tombstone != 0 {
+		return nil, errors.New("Key/Value pair doesn't exist")
+	}
+
+	return records, nil
 }

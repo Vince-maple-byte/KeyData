@@ -3,6 +3,7 @@ package record
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"time"
 	//"fmt"
@@ -54,7 +55,7 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	//Don't need to check for the GET operation since that should automatically go to the ReadFile section.
 	if operation == "" || (operation != "PUT" && operation != "DELETE") {
-		return nil, errors.New("Invalid Operation")
+		return nil, errors.New(fmt.Sprintf("Invalid operation: %v", operation))
 	}
 
 	//Make sure to use time.AppendBinary https://pkg.go.dev/time#example-Time.AppendBinary

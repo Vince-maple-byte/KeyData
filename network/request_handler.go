@@ -33,7 +33,7 @@ func (s *Server) Search(ctx context.Context, search *SearchRequest) (*SearchResp
 func (s *Server) Create(ctx context.Context, create *CreateRequest) (*CreateResponse, error) {
 	mem := NetworkMemtable()
 
-	ok, err := mem.Write(create.GetKey(), create.GetOperation(), create.Payload)
+	ok, err := mem.Write(create.GetKey(), create.GetPayload(), create.GetOperation())
 
 	if !ok {
 		return &CreateResponse{Success: ok}, status.Error(codes.Unknown, err.Error())

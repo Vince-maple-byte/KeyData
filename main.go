@@ -9,6 +9,7 @@ import (
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 	"github.com/Vince-maple-byte/KeyData/network"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 //"time"
@@ -67,8 +68,15 @@ func main() {
 	var opts []grpc.ServerOption
 
 	grpcServer := grpc.NewServer(opts...)
-	network.pb.RegisterDataServer(grpcServer, newServer())
-	//pb.RegisterDataServer(grpcServer, newServer())
+	//network.pb.RegisterDataServer(grpcServer, newServer())
+	network.RegisterDataServer(grpcServer, &network.Server{})
+	reflection.Register(grpcServer)
 	//
-	grpcServer.Server(lis)
+	err = grpcServer.Serve(lis)
+
+	if err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+
+	fmt.Printf("logging in port: %d", port)
 }

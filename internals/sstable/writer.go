@@ -27,7 +27,7 @@ const (
 
 // TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
 func WriteToFile(list [][]byte) (bool, error) {
-	filePath := "../test"
+	filePath := "../data"
 	filename := ""
 	files, err := os.ReadDir(filePath)
 
