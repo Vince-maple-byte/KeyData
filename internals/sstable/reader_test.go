@@ -2,6 +2,7 @@ package sstable_test
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -119,29 +120,29 @@ func TestReadFile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
-			_, err := sstable.WriteToFile(test.data)
+			dir := t.TempDir()
+			_, err := sstable.WriteToFile(test.data, dir)
 
 			if err != nil {
 				t.Fatalf("Error in writing the file: %s", err.Error())
 			}
-			fileInfo, err := os.Lstat("../test/kd_1.sst")
+			fileInfo, err := os.Lstat(filepath.Join(dir, "kd_1.sst"))
 			size := fileInfo.Size()
 			if err != nil {
 				tearDown("../test")
 				t.Fatalf("Error in accessing the file stats: %s", err.Error())
 			}
-			rec, err := sstable.ReadFromFile("kd_1.sst", test.key)
+			rec, err := sstable.ReadFromFile(filepath.Join(dir, "kd_1.sst"), test.key)
 
 			if rec == nil || err != nil {
-				tearDown("../test")
-				t.Fatalf("Error recieved: %v\nSize of the file: %d", err.Error(), size)
+				t.Fatalf("Error received: %v\nSize of the file: %d", err.Error(), size)
 			}
 			if record.GetContents(rec).Payload != test.expected {
 				t.Errorf("Test failed for %s\nExpected:%v\nActual:%v",
 					test.testName, test.expected, record.GetContents(rec).Payload)
 			}
 
-			tearDown("../test")
+			//tearDown("../test")
 		})
 
 	}
@@ -155,7 +156,7 @@ func TestReadFromAllFiles(t *testing.T) {
 			r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
 			d.Insert(strconv.Itoa(i), r)
 		}
-		_, err := sstable.WriteToFile(d.EntireList())
+		_, err := sstable.WriteToFile(d.EntireList(), "../test")
 
 		if err != nil {
 			t.Fatalf("Error in writing the file: %s", err.Error())

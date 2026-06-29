@@ -26,8 +26,7 @@ const (
 )
 
 // TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
-func WriteToFile(list [][]byte) (bool, error) {
-	filePath := "../data"
+func WriteToFile(list [][]byte, filePath string) (bool, error) {
 	filename := ""
 	files, err := os.ReadDir(filePath)
 
@@ -291,7 +290,7 @@ func Compact(filePath string) error {
 			//Technically speaking we can just recall the write to file again to make the new file
 			// Since the Entire write operation is there.
 			// So I'm planning on calling the Compact function after the write to file function goes through in the Memtable class
-			_, err := WriteToFile(fileContents)
+			_, err := WriteToFile(fileContents, filePath)
 
 			if err != nil {
 				return err

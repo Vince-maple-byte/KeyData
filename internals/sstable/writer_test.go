@@ -12,7 +12,7 @@ import (
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
-func startUp(data ...string) (int, error) {
+func startUp(filePath string, data ...string) (int, error) {
 
 	size := 0
 	for range 10 {
@@ -21,7 +21,7 @@ func startUp(data ...string) (int, error) {
 			w, _ := record.CreateRecord(data[i], data[i], "PUT")
 			file = append(file, w)
 		}
-		_, err := sstable.WriteToFile(file)
+		_, err := sstable.WriteToFile(file, filePath)
 
 		if err != nil {
 			return 0, err
@@ -69,8 +69,9 @@ func TestBucketsForFiles(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		totalSize, err := startUp(test.data...)
-		filePath := "../test"
+		filePath := t.TempDir()
+		totalSize, err := startUp(filePath, test.data...)
+
 		if err != nil || totalSize == 0 {
 			t.Fatalf("Could not start up the test")
 		}
@@ -94,7 +95,7 @@ func TestBucketsForFiles(t *testing.T) {
 		}
 	}
 
-	tearDown("../test")
+	//tearDown("../test")
 }
 
 func TestCompactFiles(t *testing.T) {
@@ -106,6 +107,8 @@ func TestCompactFiles(t *testing.T) {
 		return memtable.CreateSkiplist()
 	}
 
+	dir := t.TempDir()
+
 	//size := 0
 	for range 10 {
 		file := make([][]byte, 0, 10)
@@ -113,7 +116,8 @@ func TestCompactFiles(t *testing.T) {
 			w, _ := record.CreateRecord(data[i], data[i], "PUT")
 			file = append(file, w)
 		}
-		_, err := sstable.WriteToFile(file)
+
+		_, err := sstable.WriteToFile(file, dir)
 
 		t.Logf("Size: %d", len(file))
 
@@ -123,34 +127,35 @@ func TestCompactFiles(t *testing.T) {
 
 	}
 
-	err := sstable.Compact("../test")
+	err := sstable.Compact(dir)
 
 	if err != nil {
 		t.Errorf("Not able to complete the compaction\n Recieved this error code:\n%v", err)
 	}
 
-	files, err := os.ReadDir("../test")
+	files, err := os.ReadDir(dir)
 
 	if err != nil {
-		t.Fatalf("Not able to access the directory for testing: ../test")
+		t.Fatalf("Not able to access the directory for testing: %v", dir)
 	}
 
 	if len(files) != 1 {
 		t.Errorf("Improper amount of files inside of the test directory:\nExpected: %d; Actual:%d", 1, len(files))
 	}
 
-	tearDown("../test")
+	//tearDown("../test")
 }
 
 func TestWriteToFile(t *testing.T) {
 	fileContents := make([][]byte, 0, 10)
+	dir := t.TempDir()
 
 	for range 1 {
 		r, _ := record.CreateRecord("a", "1", "PUT")
 		fileContents = append(fileContents, r)
 	}
 
-	ok, err := sstable.WriteToFile(fileContents)
+	ok, err := sstable.WriteToFile(fileContents, dir)
 
 	if err != nil {
 		t.Errorf("Error encountered: %v\n", err)
@@ -160,33 +165,34 @@ func TestWriteToFile(t *testing.T) {
 		t.Errorf("Not able to create the file")
 	}
 
-	file, _ := os.Open("../test/kd_1.sst")
+	file, _ := os.Open(filepath.Join(dir, "kd_1.sst"))
+	defer file.Close()
 	info, _ := file.Stat()
 
 	if info.Size() == 0 {
 		t.Error("Did not populate file")
 	}
 
-	file.Close()
-	tearDown("../test")
+	//tearDown("../test")
 }
 
 func TestFooter(t *testing.T) {
 	fileContents := make([][]byte, 0)
+	dir := t.TempDir()
 
 	for i := range 3200 {
 		c, _ := record.CreateRecord(fmt.Sprintf("d%v", i), fmt.Sprintf("d%v", i), "PUT")
 		fileContents = append(fileContents, c)
 	}
 
-	_, err := sstable.WriteToFile(fileContents)
+	_, err := sstable.WriteToFile(fileContents, dir)
 
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	file, err := os.Open("../test/kd_1.sst")
-	//defer file.Close()
+	file, err := os.Open(filepath.Join(dir, "kd_1.sst"))
+	defer file.Close()
 
 	if err != nil {
 		t.Fatal(err.Error())
@@ -228,6 +234,4 @@ func TestFooter(t *testing.T) {
 		t.Errorf("Footer saved incorrect magic number: %v", binary.BigEndian.Uint64(footer[16:24]))
 	}
 
-	file.Close()
-	tearDown("../test")
 }
