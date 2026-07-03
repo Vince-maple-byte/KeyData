@@ -45,15 +45,15 @@ func main() {
 		return memtable.CreateSkiplist()
 	}
 
-	filePath :=
-
 	mem := memtable.CreateMemtable()
 
-	mem.MemtableStartUp()
+	mem.MemtableStartUp("./internals/wal")
 
 	network.NetworkMemtable = func() network.InternalMemtable {
 		return mem
 	}
+
+	network.FileDir = &network.Dir{Path: "./internals/data"}
 
 	port := 5773
 

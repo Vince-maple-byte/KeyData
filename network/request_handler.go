@@ -47,8 +47,9 @@ func searchHelper(key string) ([]byte, error) {
 
 	res, err := mem.Get(key)
 
+	//Got to figure out how to pass in the filePath for the directory while it still being reusable
 	if err != nil {
-		return sstable.ReadFromAllFiles(key)
+		return sstable.ReadFromAllFiles(key, FileDir.Path)
 	}
 
 	return res, err

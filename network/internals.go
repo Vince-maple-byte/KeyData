@@ -7,3 +7,10 @@ type InternalMemtable interface {
 }
 
 var NetworkMemtable func() InternalMemtable
+
+// This is the filepath struct
+type Dir struct {
+	Path string
+}
+
+var FileDir *Dir
