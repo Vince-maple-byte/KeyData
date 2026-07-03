@@ -45,15 +45,16 @@ func main() {
 		return memtable.CreateSkiplist()
 	}
 
-	mem := memtable.CreateMemtable()
+	walPath := "./internals/wal/mem1.wal"
+	dataDir := "./internals/data"
+	mem := memtable.CreateMemtable(walPath, dataDir)
 
-	mem.MemtableStartUp("./internals/wal")
+	mem.MemtableStartUp()
 
-	network.NetworkMemtable = func() network.InternalMemtable {
-		return mem
+	server := &network.Server{
+		Memtable: mem,
+		DataDir:  dataDir,
 	}
-
-	network.FileDir = &network.Dir{Path: "./internals/data"}
 
 	port := 5773
 
@@ -67,9 +68,8 @@ func main() {
 
 	grpcServer := grpc.NewServer(opts...)
 	//network.pb.RegisterDataServer(grpcServer, newServer())
-	network.RegisterDataServer(grpcServer, &network.Server{})
+	network.RegisterDataServer(grpcServer, server)
 	reflection.Register(grpcServer)
-	//
 	err = grpcServer.Serve(lis)
 
 	if err != nil {

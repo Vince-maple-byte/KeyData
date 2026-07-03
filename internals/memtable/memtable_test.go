@@ -1,13 +1,24 @@
 package memtable
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 )
 
 func TestWriteForSingleEntryInMemtable(t *testing.T) {
-	mem := CreateMemtable()
+
+	baseDir := t.TempDir()
+
+	walDir := filepath.Join(baseDir, "dir1")
+	os.Mkdir(walDir, 0700)
+
+	dataDir := filepath.Join(baseDir, "dir2")
+	os.Mkdir(dataDir, 0700)
+
+	mem := CreateMemtable(walDir, dataDir)
 	prevSize := mem.size
 	_, err := mem.Write("key", "val", "PUT")
 
@@ -21,7 +32,14 @@ func TestWriteForSingleEntryInMemtable(t *testing.T) {
 }
 
 func TestWriteForMultipleEntriesInMemtable(t *testing.T) {
-	mem := CreateMemtable()
+	baseDir := t.TempDir()
+
+	walDir := filepath.Join(baseDir, "dir1")
+	os.Mkdir(walDir, 0700)
+
+	dataDir := filepath.Join(baseDir, "dir2")
+	os.Mkdir(dataDir, 0700)
+	mem := CreateMemtable(walDir, dataDir)
 
 	tests := []struct {
 		key, value, op string
@@ -49,7 +67,14 @@ func TestWriteForMultipleEntriesInMemtable(t *testing.T) {
 }
 
 func TestGetForMemtable(t *testing.T) {
-	mem := CreateMemtable()
+	baseDir := t.TempDir()
+
+	walDir := filepath.Join(baseDir, "dir1")
+	os.Mkdir(walDir, 0700)
+
+	dataDir := filepath.Join(baseDir, "dir2")
+	os.Mkdir(dataDir, 0700)
+	mem := CreateMemtable(walDir, dataDir)
 
 	mem.Write("key", "val", "PUT")
 	actual, err := mem.Get("key")
@@ -64,7 +89,14 @@ func TestGetForMemtable(t *testing.T) {
 }
 
 func TestDeleteForMemtable(t *testing.T) {
-	mem := CreateMemtable()
+	baseDir := t.TempDir()
+
+	walDir := filepath.Join(baseDir, "dir1")
+	os.Mkdir(walDir, 0700)
+
+	dataDir := filepath.Join(baseDir, "dir2")
+	os.Mkdir(dataDir, 0700)
+	mem := CreateMemtable(walDir, dataDir)
 
 	mem.Write("key", "val", "PUT")
 	prevSize := mem.size
@@ -83,7 +115,14 @@ func TestDeleteForMemtable(t *testing.T) {
 func TestWrite_FlushResetsState(t *testing.T) {
 	t.Skip("requires sstable wiring and writable data dir — run as integration test")
 
-	mt := CreateMemtable()
+	baseDir := t.TempDir()
+
+	walDir := filepath.Join(baseDir, "dir1")
+	os.Mkdir(walDir, 0700)
+
+	dataDir := filepath.Join(baseDir, "dir2")
+	os.Mkdir(dataDir, 0700)
+	mt := CreateMemtable(walDir, dataDir)
 
 	for i := 0; i < MAX_SIZE; i++ {
 		key := "key" + string(rune(i))

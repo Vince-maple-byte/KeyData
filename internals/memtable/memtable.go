@@ -12,58 +12,63 @@ import (
 const MAX_SIZE = 3200
 
 type Memtable struct {
-	list *Skiplist
-	size int
+	list    *Skiplist
+	size    int
+	WalPath string
+	Dir     string
 }
 
-func CreateMemtable() *Memtable {
+func CreateMemtable(wal, dir string) *Memtable {
 	return &Memtable{
-		list: CreateSkiplist(),
-		size: 0,
+		list:    CreateSkiplist(),
+		size:    0,
+		WalPath: wal,
+		Dir:     dir,
 	}
 }
 
-func (memtable *Memtable) Write(key, value, operation string) (bool, error) {
+func (m *Memtable) Write(key, value, operation string) (bool, error) {
 	record, err := record.CreateRecord(key, value, operation)
 
 	if err != nil {
 		return false, err
 	}
 
-	ok, err := WriteToWal(record, "")
+	ok, err := m.writeToWal(record)
 
 	if !ok {
 		return false, err
 	}
 
-	memtable.list.Insert(key, record)
-	memtable.size += 1
+	m.list.Insert(key, record)
+	m.size += 1
 
-	if memtable.size >= MAX_SIZE {
-		content := memtable.list.EntireList()
-		_, errF := sstable.WriteToFile(content, "./internals/")
+	if m.size >= MAX_SIZE {
+		content := m.list.EntireList()
+		_, errF := sstable.WriteToFile(content, m.Dir)
 
 		if errF != nil {
 			return false, errF
 		}
 
 		//For now, when running test we just replace the folder path as the test folder.
-		err = sstable.Compact("../data")
+		err = sstable.Compact(m.Dir)
 
 		if err != nil {
 			return false, err
 		}
 
-		memtable.list.EmptyList()
-		memtable.size = 0
+		m.list.EmptyList()
+		m.size = 0
+		os.Remove(m.WalPath)
 
 	}
 
 	return true, nil
 }
 
-func (memtable *Memtable) Get(key string) ([]byte, error) {
-	records, err := memtable.list.Search(key)
+func (m *Memtable) Get(key string) ([]byte, error) {
+	records, err := m.list.Search(key)
 
 	if err != nil {
 		return nil, err
@@ -78,8 +83,8 @@ func (memtable *Memtable) Get(key string) ([]byte, error) {
 	return records, nil
 }
 
-func WriteToWal(record []byte, filePath string) (bool, error) {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (m Memtable) writeToWal(record []byte) (bool, error) {
+	file, err := os.OpenFile(m.WalPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	defer file.Close()
 
@@ -96,8 +101,8 @@ func WriteToWal(record []byte, filePath string) (bool, error) {
 	return true, nil
 }
 
-func (m *Memtable) MemtableStartUp(filePath string) (bool, error) {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (m *Memtable) MemtableStartUp() (bool, error) {
+	file, err := os.OpenFile(m.WalPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	defer file.Close()
 

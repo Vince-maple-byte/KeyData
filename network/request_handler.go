@@ -12,10 +12,13 @@ import (
 
 type Server struct {
 	UnimplementedDataServer
+
+	Memtable InternalMemtable
+	DataDir  string
 }
 
 func (s *Server) Search(ctx context.Context, search *SearchRequest) (*SearchResponse, error) {
-	res, err := searchHelper(search.GetKey())
+	res, err := s.searchHelper(search.GetKey())
 
 	if err != nil {
 		return &SearchResponse{CreatedAt: nil, Key: "", Payload: ""}, status.Error(codes.NotFound, err.Error())
@@ -31,9 +34,9 @@ func (s *Server) Search(ctx context.Context, search *SearchRequest) (*SearchResp
 }
 
 func (s *Server) Create(ctx context.Context, create *CreateRequest) (*CreateResponse, error) {
-	mem := NetworkMemtable()
+	//mem := NetworkMemtable()
 
-	ok, err := mem.Write(create.GetKey(), create.GetPayload(), create.GetOperation())
+	ok, err := s.Memtable.Write(create.GetKey(), create.GetPayload(), create.GetOperation())
 
 	if !ok {
 		return &CreateResponse{Success: ok}, status.Error(codes.Unknown, err.Error())
@@ -42,14 +45,14 @@ func (s *Server) Create(ctx context.Context, create *CreateRequest) (*CreateResp
 	return &CreateResponse{Success: ok}, nil
 }
 
-func searchHelper(key string) ([]byte, error) {
-	mem := NetworkMemtable()
+func (s Server) searchHelper(key string) ([]byte, error) {
+	//mem := NetworkMemtable()
 
-	res, err := mem.Get(key)
+	res, err := s.Memtable.Get(key)
 
 	//Got to figure out how to pass in the filePath for the directory while it still being reusable
 	if err != nil {
-		return sstable.ReadFromAllFiles(key, FileDir.Path)
+		return sstable.ReadFromAllFiles(key, s.DataDir)
 	}
 
 	return res, err

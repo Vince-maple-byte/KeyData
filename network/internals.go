@@ -13,4 +13,4 @@ type Dir struct {
 	Path string
 }
 
-var FileDir *Dir
+var FileDir Dir
