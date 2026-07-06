@@ -50,13 +50,14 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 	}
 
 	file, err := os.Create(filepath.Join(filePath, filename))
-	defer file.Close()
+	
 
 	if err != nil {
 		return false, err
 	}
 
-	//contents := list
+	defer file.Close()
+	
 	offset := fileOffset(list)
 	index := createIndexBlock(list, offset)
 	footer, err := createFooter(list)
