@@ -7,34 +7,34 @@ on:
 jobs:
   tests:
     name: Tests
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Check out code
-          uses: actions/checkout@v6
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
 
-        - name: Set up Go
-          uses: actions/setup-go@v6
-          with:
-            go-version: "1.26.0"
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
 
-        - name: Install Staticcheck
-          run: go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
+      - name: Install Staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
 
-        - name: Install Gosec
-          run: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
+      - name: Install Gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5
 
-        - name: Go formatting
-          run: go fmt ./...
+      - name: Go formatting
+        run: go fmt ./...
 
-        - name: Linting
-          run: go vet ./...
+      - name: Linting
+        run: go vet ./...
 
-        - name: Run Staticcheck
-          run: staticcheck ./...
+      - name: Run Staticcheck
+        run: staticcheck ./...
 
-        - name: Run Gosec
-          run: gosec ./...
+      - name: Run Gosec
+        run: gosec ./...
 
-        - name: Go Test
-          run: go test ./... -cover
+      - name: Go Test
+        run: go test ./... -cover
