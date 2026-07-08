@@ -55,7 +55,7 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	//Don't need to check for the GET operation since that should automatically go to the ReadFile section.
 	if operation == "" || (operation != "PUT" && operation != "DELETE") {
-		return nil, fmt.Errorf("Invalid operation: %v", operation)
+		return nil, fmt.Errorf("invalid operation: %v", operation)
 	}
 
 	//Make sure to use time.AppendBinary https://pkg.go.dev/time#example-Time.AppendBinary

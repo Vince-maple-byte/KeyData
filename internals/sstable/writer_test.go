@@ -196,11 +196,12 @@ func TestFooter(t *testing.T) {
 	}
 
 	file, err := os.Open(filepath.Join(dir, "kd_1.sst"))
-	defer file.Close()
-
+	
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
+	defer file.Close()
 
 	footer := make([]byte, 24)
 	fileInfo, _ := file.Stat()
