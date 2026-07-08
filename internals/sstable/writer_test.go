@@ -165,7 +165,11 @@ func TestWriteToFile(t *testing.T) {
 		t.Errorf("Not able to create the file")
 	}
 
-	file, _ := os.Open(filepath.Join(dir, "kd_1.sst"))
+	file,err  := os.Open(filepath.Join(dir, "kd_1.sst"))
+
+	if err != nil {
+		t.Fatalf("not able to open the file: %v", err)
+	}
 	defer file.Close()
 	info, _ := file.Stat()
 
@@ -173,7 +177,7 @@ func TestWriteToFile(t *testing.T) {
 		t.Error("Did not populate file")
 	}
 
-	//tearDown("../test")
+	
 }
 
 func TestFooter(t *testing.T) {

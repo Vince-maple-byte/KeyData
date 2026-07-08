@@ -46,7 +46,7 @@ func (list *Skiplist) Search(key string) ([]byte, error) {
 		}
 	}
 
-	return nil, errors.New("Element doesn't exist")
+	return nil, errors.New("element doesn't exist")
 }
 
 // The value is the entire record including all of the information on the timestamp, etc.
@@ -131,7 +131,7 @@ func (list Skiplist) searchNode(key string) (*Node, error) {
 		}
 	}
 
-	return nil, errors.New("Element doesn't exist")
+	return nil, errors.New("element doesn't exist")
 }
 
 func (list *Skiplist) EmptyList() {

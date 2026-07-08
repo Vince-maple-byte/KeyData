@@ -50,12 +50,12 @@ func createTimeStamp() int64 {
 // Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
 func CreateRecord(key, payload, operation string) ([]byte, error) {
 	if key == "" {
-		return nil, errors.New("Invalid Key")
+		return nil, errors.New("invalid Key")
 	}
 
 	//Don't need to check for the GET operation since that should automatically go to the ReadFile section.
 	if operation == "" || (operation != "PUT" && operation != "DELETE") {
-		return nil, errors.New(fmt.Sprintf("Invalid operation: %v", operation))
+		return nil, fmt.Errorf("Invalid operation: %v", operation)
 	}
 
 	//Make sure to use time.AppendBinary https://pkg.go.dev/time#example-Time.AppendBinary
@@ -95,14 +95,10 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 	b = binary.BigEndian.AppendUint32(b, valueSize)
 
 	//We are adding the key and payload into the record here
-	for _, v := range keyBuff {
-		b = append(b, v)
-	}
-
-	for _, v := range valueBuff {
-		b = append(b, v)
-	}
-
+	
+	b = append(b, keyBuff...)
+	b = append(b, valueBuff...)
+	
 	return b, nil
 }
 

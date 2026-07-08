@@ -28,11 +28,13 @@ type SSTFile struct {
 // stating that the key can't be found
 func ReadFromFile(filePath, key string) ([]byte, error) {
 	file, err := os.Open(filePath)
-
-	defer file.Close()
+	
 	if err != nil {
 		return nil, err
 	}
+
+	defer file.Close()
+	
 	fileInfo, _ := file.Stat()
 	footer := make([]byte, 24)
 
@@ -40,7 +42,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 	//Checking the magic number first
 	if binary.BigEndian.Uint64(footer[16:]) != uint64(0xDEADBEEFDEADBEEF) {
-		err = errors.New("Incorrect magic number inside of the file. The file is invalid")
+		err = errors.New("incorrect magic number inside of the file. The file is invalid")
 		return nil, err
 	}
 
@@ -81,7 +83,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	}
 
 	if lowKeyOffset == highKeyOffset {
-		return nil, errors.New("Key is not inside of the file: Key is larger than any key in the file")
+		return nil, errors.New("key is not inside of the file: Key is larger than any key in the file")
 	}
 
 	//TODO: Make the range to
@@ -102,7 +104,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 			[]byte(currRecord.Payload),
 			uint64(currRecord.Timestamp.UnixNano()),
 			currRecord.Checksum) {
-			return nil, errors.New("This section of the file is corrupted, can not retrieve the key/value pairs from here")
+			return nil, errors.New("this section of the file is corrupted, can not retrieve the key/value pairs from here")
 		}
 
 		if currRecord.Key == key {
@@ -116,7 +118,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 		i += 21 + uint64(keySize) + uint64(payloadSize)
 	}
 
-	return nil, errors.New("Key could not be found")
+	return nil, errors.New("key could not be found")
 }
 
 func ReadFromAllFiles(key string, dir string) ([]byte, error) {
@@ -152,14 +154,14 @@ func ReadFromAllFiles(key string, dir string) ([]byte, error) {
 			contents := record.GetContents(res)
 
 			if contents.Tombstone != 0 {
-				return nil, errors.New("Key/Value pair doesn't exist")
+				return nil, errors.New("key/value pair doesn't exist")
 			}
 
 			return res, nil
 		}
 	}
 
-	return nil, errors.New("The key does not exist in any of the files")
+	return nil, errors.New("the key does not exist in any of the files")
 }
 
 func parseGeneration(fileName string) (int, error) {

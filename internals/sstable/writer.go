@@ -159,7 +159,7 @@ func fileOffset(contentList [][]byte) []uint64 {
 
 func createFooter(list [][]byte) ([]byte, error) {
 	if len(list) <= 0 {
-		return nil, errors.New("Not able to create the footer because the record list is too small")
+		return nil, errors.New("not able to create the footer because the record list is too small")
 	}
 	footer := make([]byte, 0, 24)
 	footer = binary.BigEndian.AppendUint64(footer, 0)

@@ -106,13 +106,11 @@ func (m Memtable) writeToWal(record []byte) (bool, error) {
 func (m *Memtable) MemtableStartUp() (bool, error) {
 	file, err := os.OpenFile(m.WalFilePath, os.O_APPEND|os.O_CREATE|os.O_RDONLY, 0644)
 	
-	defer file.Close()
-
 	if err != nil {
-		return false, err
+		return false, err;
 	}
 
-
+	defer file.Close()
 
 	fileInfo, err := file.Stat()
 
