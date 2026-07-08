@@ -36,5 +36,5 @@ jobs:
       - name: Run Gosec
         run: gosec ./...
 
-        - name: Go Test
-          run: go test ./... -cover
+      - name: Go Test
+        run: go test ./... -cover
