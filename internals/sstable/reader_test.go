@@ -1,6 +1,7 @@
 package sstable_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -151,6 +152,7 @@ func TestReadFile(t *testing.T) {
 func TestReadFromAllFiles(t *testing.T) {
 
 	dir := t.TempDir()
+	fmt.Println("File Directory:", dir)
 	for i := range 10 {
 		d := memtable.CreateSkiplist()
 		for i := range 3000 * (i + 1) {
@@ -168,7 +170,7 @@ func TestReadFromAllFiles(t *testing.T) {
 	_, err := sstable.ReadFromAllFiles("29994", dir)
 
 	if err != nil {
-		t.Errorf("Was not able to find the valid record")
+		t.Errorf("Was not able to find the valid record\n%v", err)
 	}
 
 	//tearDown("../test")

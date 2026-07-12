@@ -3,6 +3,7 @@ package sstable
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,7 +18,7 @@ type SSTFile struct {
 	FileName   string
 }
 
-// How to read from the file
+// How to read from the file.
 // We first checking the magic number inside of the footer to see if the file is valid
 // We get the byte offset of the index block, and proceed to do:
 // We check if the key inside of the byte offset is greater than or equal to our key
@@ -28,13 +29,13 @@ type SSTFile struct {
 // stating that the key can't be found
 func ReadFromFile(filePath, key string) ([]byte, error) {
 	file, err := os.Open(filePath)
-	
+
 	if err != nil {
 		return nil, err
 	}
 
 	defer file.Close()
-	
+
 	fileInfo, _ := file.Stat()
 	footer := make([]byte, 24)
 
@@ -131,7 +132,7 @@ func ReadFromAllFiles(key string, dir string) ([]byte, error) {
 	}
 
 	for _, file := range fileDir {
-		gen, err := parseGeneration(filepath.Join("../data", file.Name()))
+		gen, err := parseGeneration(filepath.Join(dir, file.Name()))
 
 		if err != nil {
 			continue
@@ -144,11 +145,14 @@ func ReadFromAllFiles(key string, dir string) ([]byte, error) {
 	}
 
 	sort.Slice(files, func(i, j int) bool {
-		return files[i].Generation < files[j].Generation
+		return files[i].Generation > files[j].Generation
 	})
 
+	var currContent record.Content
+	var result []byte
 	for _, file := range files {
-		res, err := ReadFromFile(file.FileName, key)
+		fmt.Println(file.FileName)
+		res, err := ReadFromFile(filepath.Join(dir, file.FileName), key)
 
 		if err == nil {
 			contents := record.GetContents(res)
@@ -157,11 +161,20 @@ func ReadFromAllFiles(key string, dir string) ([]byte, error) {
 				return nil, errors.New("key/value pair doesn't exist")
 			}
 
-			return res, nil
+			if currContent == (record.Content{}) {
+				currContent = contents
+				result = res
+			} else if contents.Timestamp.After(currContent.Timestamp) {
+				currContent = contents
+			}
 		}
 	}
 
-	return nil, errors.New("the key does not exist in any of the files")
+	if currContent != (record.Content{}) {
+		return result, nil
+	} else {
+		return nil, errors.New("The key does not exist in any of the files")
+	}
 }
 
 func parseGeneration(fileName string) (int, error) {
