@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 type SSTFile struct {
@@ -39,8 +40,11 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	fileInfo, _ := file.Stat()
 	footer := make([]byte, 24)
 
-	file.ReadAt(footer, fileInfo.Size()-24)
-
+	_, err = file.ReadAt(footer, fileInfo.Size()-24)
+	
+	if err != nil {
+		return nil, err;
+	}
 	//Checking the magic number first
 	if binary.BigEndian.Uint64(footer[16:]) != uint64(0xDEADBEEFDEADBEEF) {
 		err = errors.New("incorrect magic number inside of the file. The file is invalid")
@@ -54,12 +58,26 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 	for i := indexBlockLoc; i <= uint64(fileInfo.Size()-24); {
 		keySize := make([]byte, 4)
-		file.ReadAt(keySize, int64(i))
+		_,err := file.ReadAt(keySize, int64(i))
+		
+		if err != nil {
+			return nil, err;
+		}
+
 		offsetKey := make([]byte, int64(binary.BigEndian.Uint32(keySize)))
-		file.ReadAt(offsetKey, int64(i)+4)
+		_, err = file.ReadAt(offsetKey, int64(i)+4)
+		if err != nil {
+			return nil, err;
+		}
+
 		//This gives us the location of the offset where it is saved in the data portion of the file
 		offsetLoc := make([]byte, 8)
-		file.ReadAt(offsetLoc, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
+		_,err = file.ReadAt(offsetLoc, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
+
+		if err != nil {
+			return nil, err;
+		}
+
 		keyOffset := binary.BigEndian.Uint64(offsetLoc)
 
 		//Go to the next location in the index block
@@ -67,11 +85,27 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 		if key == string(offsetKey) {
 			curr := make([]byte, 21)
-			file.ReadAt(curr, int64(keyOffset))
+			_, err := file.ReadAt(curr, int64(keyOffset))
+
+			if err != nil {
+				return nil, err;
+			}
+
 			payloadSize := binary.BigEndian.Uint32(curr[17:21])
 
 			entireRecord := make([]byte, 21+binary.BigEndian.Uint32(keySize)+payloadSize)
-			file.ReadAt(entireRecord, int64(keyOffset))
+			keyOffsetConv, err := safecast.Convert[int64](keyOffset)
+
+			if err != nil {
+				return nil, err;
+			}
+
+			_,err = file.ReadAt(entireRecord, keyOffsetConv)
+			
+			if err != nil {
+				return nil, err;
+			}
+
 			return entireRecord, nil
 		}
 
@@ -81,6 +115,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 		if key < string(offsetKey) {
 			break
 		}
+
 	}
 
 	if lowKeyOffset == highKeyOffset {
@@ -91,12 +126,21 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 	for i := lowKeyOffset; i < highKeyOffset; {
 		curr := make([]byte, 21)
-		file.ReadAt(curr, int64(i))
+		_,err := file.ReadAt(curr, int64(i))
+
+		if err != nil {
+			return nil, err;
+		}
+		
 		keySize := binary.BigEndian.Uint32(curr[13:17])
 		payloadSize := binary.BigEndian.Uint32(curr[17:21])
 
 		entireRecord := make([]byte, 21+keySize+payloadSize)
-		file.ReadAt(entireRecord, int64(i))
+		_,err = file.ReadAt(entireRecord, int64(i))
+
+		if err != nil {
+			return nil, err;
+		}
 
 		currRecord := record.GetContents(entireRecord)
 
@@ -173,7 +217,7 @@ func ReadFromAllFiles(key string, dir string) ([]byte, error) {
 	if currContent != (record.Content{}) {
 		return result, nil
 	} else {
-		return nil, errors.New("The key does not exist in any of the files")
+		return nil, errors.New("the key does not exist in any of the files")
 	}
 }
 

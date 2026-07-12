@@ -61,7 +61,10 @@ func (m *Memtable) Write(key, value, operation string) (bool, error) {
 
 		m.list.EmptyList()
 		m.size = 0
-		os.Remove(m.WalFilePath)
+		
+		if err := os.Remove(m.WalFilePath); err != nil {
+			return false, err;
+		}
 
 	}
 
@@ -85,7 +88,7 @@ func (m *Memtable) Get(key string) ([]byte, error) {
 }
 
 func (m Memtable) writeToWal(record []byte) (bool, error) {
-	file, err := os.OpenFile(m.WalFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(m.WalFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	
 	if err != nil {
 		errMessage := fmt.Sprintf("Not able to create/open the wal file %s", m.WalFilePath)
@@ -104,7 +107,7 @@ func (m Memtable) writeToWal(record []byte) (bool, error) {
 }
 
 func (m *Memtable) MemtableStartUp() (bool, error) {
-	file, err := os.OpenFile(m.WalFilePath, os.O_APPEND|os.O_CREATE|os.O_RDONLY, 0644)
+	file, err := os.OpenFile(m.WalFilePath, os.O_APPEND|os.O_CREATE|os.O_RDONLY, 0600)
 	
 	if err != nil {
 		return false, err;
@@ -120,13 +123,21 @@ func (m *Memtable) MemtableStartUp() (bool, error) {
 
 	for i := int64(0); i < fileInfo.Size(); {
 		header := make([]byte, 21)
-		file.ReadAt(header, i)
+		_, err := file.ReadAt(header, i)
+
+		if err != nil {
+			return false, err;
+		}
 
 		keySize := binary.BigEndian.Uint32(header[13:17])
 		payloadSize := binary.BigEndian.Uint32(header[17:21])
 
 		keyValuePair := make([]byte, keySize+payloadSize)
-		file.ReadAt(keyValuePair, i+21)
+		_, err = file.ReadAt(keyValuePair, i+21)
+
+		if err != nil {
+			return false, err;
+		}
 
 		ok := record.ChecksumChecker(
 			keyValuePair[:keySize],

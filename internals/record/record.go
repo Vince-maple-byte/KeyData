@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"time"
-	//"fmt"
+	"github.com/ccoveille/go-safecast/v2"	
 )
 
 //We are using Big Endian for all the mult byte variables that are going to be saved into the file
@@ -27,10 +27,11 @@ type Content struct {
 
 func checkSum(key, payload []byte, timestamp uint64) uint32 {
 	buf := make([]byte, 16+len(key)+len(payload))
-
+	keySizeConv,_  := safecast.Convert[uint32](len(key))
+	payloadSizeConv,_ := safecast.Convert[uint32](len(payload))
 	binary.BigEndian.PutUint64(buf[0:8], timestamp)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(len(key)))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(len(payload)))
+	binary.BigEndian.PutUint32(buf[8:12], keySizeConv)
+	binary.BigEndian.PutUint32(buf[12:16], payloadSizeConv)
 
 	copy(buf[16:], key)
 	copy(buf[16+len(key):], payload)
@@ -46,6 +47,7 @@ func createTimeStamp() int64 {
 	return time.Now().UnixNano()
 }
 
+//CreateRecord:
 // data == payload
 // Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
 func CreateRecord(key, payload, operation string) ([]byte, error) {
@@ -63,12 +65,17 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	//Use the binary.BigEndian again to convert the binary back to an int64 number
 	time := createTimeStamp()
+	timeConv,err := safecast.Convert[uint64](time)
 
-	b = binary.BigEndian.AppendUint64(b, uint64(time))
+	if err != nil {
+		return nil, err;
+	}
+
+	b = binary.BigEndian.AppendUint64(b, timeConv)
 	//fmt.Println(len(b), time);
 
 	//Remember to use BigEndian for reverting it back to a uint32
-	b = binary.BigEndian.AppendUint32(b, checkSum([]byte(key), []byte(payload), uint64(time)))
+	b = binary.BigEndian.AppendUint32(b, checkSum([]byte(key), []byte(payload), timeConv))
 
 	//We are adding the tombstone value into the record here
 	var Tombstone uint8
@@ -84,15 +91,25 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	//We are adding the key size here remember that key size and value is uint32
 	keyBuff := []byte(key)
-	keySize := uint32(len(keyBuff))
+	keySize := len(keyBuff)
+	keySizeConv, err := safecast.Convert[uint32](keySize)
 
-	b = binary.BigEndian.AppendUint32(b, keySize)
+	if err != nil {
+		return nil, err;
+	}
+
+	b = binary.BigEndian.AppendUint32(b, keySizeConv)
 
 	//We are adding the payload size here
 	valueBuff := []byte(payload)
-	valueSize := uint32(len(valueBuff))
+	valueSize := len(valueBuff)
+	valueSizeConv, err := safecast.Convert[uint32](valueSize)
 
-	b = binary.BigEndian.AppendUint32(b, valueSize)
+	if err != nil {
+		return nil, err;
+	}
+
+	b = binary.BigEndian.AppendUint32(b, valueSizeConv)
 
 	//We are adding the key and payload into the record here
 	

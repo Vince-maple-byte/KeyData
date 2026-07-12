@@ -48,7 +48,8 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 		}
 		filename = "kd_" + strconv.Itoa(maxIndex+1) + ".sst"
 	}
-
+	
+	// #nosec G304 -- Creating SSTables enumerated from the internal storage directory.
 	file, err := os.Create(filepath.Join(filePath, filename))
 	
 
@@ -77,7 +78,10 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	file.Sync()
+	if err := file.Sync(); err != nil {
+		return false, err;
+	}
+
 
 	return true, nil
 }
@@ -247,7 +251,7 @@ func Compact(filePath string) error {
 		if bucketSize >= minThreshold && bucketSize <= maxThreshold {
 			skiplist := MergeList()
 			for _, fileInfo := range val {
-
+				// #nosec G304 -- Reading SSTables discovered via os.ReadDir from the internal storage directory.
 				fileData, err := os.ReadFile(filepath.Join(filePath, fileInfo.Name()))
 
 				if err != nil {
@@ -256,7 +260,11 @@ func Compact(filePath string) error {
 				//We do this so that we only take into account the file block, and not the index or footer
 				footer := fileData[len(fileData)-24:]
 				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
-					os.Remove(filepath.Join(filePath, fileInfo.Name()))
+					
+					if err := os.Remove(filepath.Join(filePath, fileInfo.Name())); err != nil {
+						return fmt.Errorf("warning: failed to remove corrupt SSTable %s: %v",
+            				fileInfo.Name(), err)
+					}
 					return fmt.Errorf("invalid footer magic")
 				}
 				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])

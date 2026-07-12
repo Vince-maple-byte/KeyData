@@ -157,6 +157,7 @@ func (list *Skiplist) EntireList() [][]byte {
 func randLevel() int {
 	var level int = 1
 
+	//#nosec g404 -- Skiplist uses non-cryptographic randomness for performance
 	for rand.IntN(2) == 1 && level < MAX_LEVEL {
 		level++
 	}
