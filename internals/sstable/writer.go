@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 type file_buckets float64
@@ -48,17 +49,16 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 		}
 		filename = "kd_" + strconv.Itoa(maxIndex+1) + ".sst"
 	}
-	
+
 	// #nosec G304 -- Creating SSTables enumerated from the internal storage directory.
 	file, err := os.Create(filepath.Join(filePath, filename))
-	
 
 	if err != nil {
 		return false, err
 	}
 
 	defer file.Close()
-	
+
 	offset := fileOffset(list)
 	index := createIndexBlock(list, offset)
 	footer, err := createFooter(list)
@@ -79,9 +79,8 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 	}
 
 	if err := file.Sync(); err != nil {
-		return false, err;
+		return false, err
 	}
-
 
 	return true, nil
 }
@@ -260,35 +259,45 @@ func Compact(filePath string) error {
 				//We do this so that we only take into account the file block, and not the index or footer
 				footer := fileData[len(fileData)-24:]
 				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
-					
+
 					if err := os.Remove(filepath.Join(filePath, fileInfo.Name())); err != nil {
 						return fmt.Errorf("warning: failed to remove corrupt SSTable %s: %v",
-            				fileInfo.Name(), err)
+							fileInfo.Name(), err)
 					}
 					return fmt.Errorf("invalid footer magic")
 				}
 				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])
 
 				//We are going through each file and from there we will save each key/value pair record into a skiplist
-				for i := 0; i < int(fileBlockEnds); {
-					//header := fileData[i : i+21]
+				for i := uint64(0); i < fileBlockEnds; {
 					time := fileData[i : i+8]
 
 					checksum := binary.BigEndian.Uint32(fileData[i+8 : i+12])
 
 					keySize := int(binary.BigEndian.Uint32(fileData[i+13 : i+17]))
 					payloadSize := int(binary.BigEndian.Uint32(fileData[i+17 : i+21]))
+					keySizeUi64, err := safecast.Convert[uint64](keySize)
 
-					key := fileData[i+21 : i+keySize+21]
-					payload := fileData[i+keySize+21 : i+(keySize+21)+payloadSize]
+					if err != nil {
+						return err
+					}
+
+					payloadSizeUi64, err := safecast.Convert[uint64](payloadSize)
+
+					if err != nil {
+						return err
+					}
+
+					key := fileData[i+21 : i+keySizeUi64+21]
+					payload := fileData[i+keySizeUi64+21 : i+(keySizeUi64+21)+payloadSizeUi64]
 
 					//If the checksum is invalid, we ignore the rest of the file
 					if !record.ChecksumChecker(key, payload, binary.BigEndian.Uint64(time), checksum) {
 						break
 					}
 
-					skiplist.Insert(string(key), fileData[i:i+(keySize+21)+payloadSize])
-					i = i + (keySize + 21) + payloadSize
+					skiplist.Insert(string(key), fileData[i:i+(keySizeUi64+21)+payloadSizeUi64])
+					i = i + (keySizeUi64 + 21) + payloadSizeUi64
 
 				}
 			}

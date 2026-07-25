@@ -29,6 +29,7 @@ type SSTFile struct {
 // If the key is not inside of the range in which we stated before, than we can just return nil and an error message
 // stating that the key can't be found
 func ReadFromFile(filePath, key string) ([]byte, error) {
+	// #nosec G304
 	file, err := os.Open(filePath)
 
 	if err != nil {
@@ -55,24 +56,37 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	indexBlockLoc := binary.BigEndian.Uint64(footer[8:16])
 	lowKeyOffset := uint64(0)
 	highKeyOffset := uint64(0)
+	fileSize64, err := safecast.Convert[uint64](fileInfo.Size())
 
-	for i := indexBlockLoc; i <= uint64(fileInfo.Size()-24); {
+	for i := indexBlockLoc; i <= fileSize64-24; {
+		i64, err := safecast.Convert[int64](i)
+		if err != nil {
+			return nil, err
+		}
 		keySize := make([]byte, 4)
-		_, err := file.ReadAt(keySize, int64(i))
+		_, err = file.ReadAt(keySize, i64)
+		keySize32 := binary.BigEndian.Uint32(keySize)
 
 		if err != nil {
 			return nil, err
 		}
 
-		offsetKey := make([]byte, int64(binary.BigEndian.Uint32(keySize)))
-		_, err = file.ReadAt(offsetKey, int64(i)+4)
+		offsetKey := make([]byte, keySize32)
+
+		_, err = file.ReadAt(offsetKey, i64+4)
 		if err != nil {
 			return nil, err
 		}
 
 		//This gives us the location of the offset where it is saved in the data portion of the file
 		offsetLoc := make([]byte, 8)
-		_, err = file.ReadAt(offsetLoc, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
+		keySize64, err := safecast.Convert[int64](keySize32)
+
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = file.ReadAt(offsetLoc, i64+4+keySize64)
 
 		if err != nil {
 			return nil, err
@@ -150,11 +164,16 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 		}
 
 		currRecord := record.GetContents(entireRecord)
+		timestampUi64, err := safecast.Convert[uint64](currRecord.Timestamp.UnixNano())
+
+		if err != nil {
+			return nil, err
+		}
 
 		if !record.ChecksumChecker(
 			[]byte(currRecord.Key),
 			[]byte(currRecord.Payload),
-			uint64(currRecord.Timestamp.UnixNano()),
+			timestampUi64,
 			currRecord.Checksum) {
 			return nil, errors.New("this section of the file is corrupted, can not retrieve the key/value pairs from here")
 		}

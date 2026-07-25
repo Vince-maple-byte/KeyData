@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"hash/crc32"
 	"time"
-	"github.com/ccoveille/go-safecast/v2"	
+
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 //We are using Big Endian for all the mult byte variables that are going to be saved into the file
@@ -27,8 +28,8 @@ type Content struct {
 
 func checkSum(key, payload []byte, timestamp uint64) uint32 {
 	buf := make([]byte, 16+len(key)+len(payload))
-	keySizeConv,_  := safecast.Convert[uint32](len(key))
-	payloadSizeConv,_ := safecast.Convert[uint32](len(payload))
+	keySizeConv, _ := safecast.Convert[uint32](len(key))
+	payloadSizeConv, _ := safecast.Convert[uint32](len(payload))
 	binary.BigEndian.PutUint64(buf[0:8], timestamp)
 	binary.BigEndian.PutUint32(buf[8:12], keySizeConv)
 	binary.BigEndian.PutUint32(buf[12:16], payloadSizeConv)
@@ -47,7 +48,7 @@ func createTimeStamp() int64 {
 	return time.Now().UnixNano()
 }
 
-//CreateRecord:
+// CreateRecord:
 // data == payload
 // Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
 func CreateRecord(key, payload, operation string) ([]byte, error) {
@@ -65,10 +66,10 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 
 	//Use the binary.BigEndian again to convert the binary back to an int64 number
 	time := createTimeStamp()
-	timeConv,err := safecast.Convert[uint64](time)
+	timeConv, err := safecast.Convert[uint64](time)
 
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	b = binary.BigEndian.AppendUint64(b, timeConv)
@@ -95,7 +96,7 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 	keySizeConv, err := safecast.Convert[uint32](keySize)
 
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	b = binary.BigEndian.AppendUint32(b, keySizeConv)
@@ -106,22 +107,24 @@ func CreateRecord(key, payload, operation string) ([]byte, error) {
 	valueSizeConv, err := safecast.Convert[uint32](valueSize)
 
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	b = binary.BigEndian.AppendUint32(b, valueSizeConv)
 
 	//We are adding the key and payload into the record here
-	
+
 	b = append(b, keyBuff...)
 	b = append(b, valueBuff...)
-	
+
 	return b, nil
 }
 
 func GetContents(content []byte) (result Content) {
 	timeByte := content[:8]
-	result.Timestamp = time.Unix(0, int64(binary.BigEndian.Uint64(timeByte)))
+	timestamp64, _ := safecast.Convert[int64](binary.BigEndian.Uint64(timeByte))
+
+	result.Timestamp = time.Unix(0, timestamp64)
 
 	result.Checksum = binary.BigEndian.Uint32(content[8:12])
 
