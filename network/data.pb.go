@@ -288,6 +288,8 @@ var file_network_data_proto_depIdxs = []int32{
 }
 
 func init() { file_network_data_proto_init() }
+
+// #nosec G103
 func file_network_data_proto_init() {
 	if File_network_data_proto != nil {
 		return
@@ -295,7 +297,6 @@ func file_network_data_proto_init() {
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
-			// #nosec G103
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_network_data_proto_rawDesc), len(file_network_data_proto_rawDesc)),
 			NumEnums:      0,

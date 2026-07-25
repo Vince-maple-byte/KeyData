@@ -58,6 +58,10 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	highKeyOffset := uint64(0)
 	fileSize64, err := safecast.Convert[uint64](fileInfo.Size())
 
+	if err != nil {
+		return nil, err
+	}
+
 	for i := indexBlockLoc; i <= fileSize64-24; {
 		i64, err := safecast.Convert[int64](i)
 		if err != nil {
@@ -99,7 +103,13 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 		if key == string(offsetKey) {
 			curr := make([]byte, 21)
-			_, err := file.ReadAt(curr, int64(keyOffset))
+			keyOffsetI64, err := safecast.Convert[int64](keyOffset)
+
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = file.ReadAt(curr, keyOffsetI64)
 
 			if err != nil {
 				return nil, err
