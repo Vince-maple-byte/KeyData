@@ -2,19 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net"
+	"os"
 
-	"github.com/Vince-maple-byte/KeyData/internals/file"
-	//"time"
-	// "github.com/Vince-maple-byte/KeyData/internals/file"
-	//"github.com/Vince-maple-byte/KeyData/internals/record"
-	// "unsafe"
+	"github.com/Vince-maple-byte/KeyData/internals/memtable"
+	"github.com/Vince-maple-byte/KeyData/internals/sstable"
+	"github.com/Vince-maple-byte/KeyData/network"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 /*
-
-TODO:
-
-Make the Write method
 
 How the structure of the timestamp would look like
 Timestamp | CRC32 error checksum| Tombstone (It's one byte long; basically 0 and 1 to determine whether this is a deleted key or not) | Key Size | Payload(Value) Size | Key Value |  Payload
@@ -24,9 +23,9 @@ time stamp: 8 bytes
 CRC32: 4 bytes
 Tombstone: 1 byte
 key size: 4 bytes
-payload size: 4 bytes
+payload size: 4 bytes -> The header of the record is 21 bytes long
 key: (key size) bytes
-payload: (payload size) bytes
+payload: (payload size) bytes -> The rest of the record is 21 + keySize + payloadSize bytes long
 
 Have it so that in the Write method after we are done adding the record into the file, make sure to add flush(), we update the index map with the key and byte offset
 
@@ -37,97 +36,51 @@ Make some unit tests to test the methods
 From there we can move on to SSTable, compaction, LSM Tables, and finally bloom tables
 
 
+TODO: Fix the filePath for the project so that it doesn't have to be hardcoded.
+./internals/data works for the production while ../data works for unit tests
 */
 
 func main() {
-	var database string
-	fmt.Println("Welcome to KeyData")
-	fmt.Print("Enter your database name to get started\n")
-
-	_, err := fmt.Scan(&database)
-
-	for err != nil {
-		fmt.Println("Please enter a valid database name")
-		_, err = fmt.Scan(&database)
+	//We need to use this interface here to avoid an import cycle between sstable and memtable
+	sstable.MergeList = func() sstable.ListMerger {
+		return memtable.CreateSkiplist()
 	}
 
-	database += ".log"
+	walPath := "./internals/wal/mem1.wal"
+	dataDir := "./internals/data"
+	mem := memtable.CreateMemtable(walPath, dataDir)
 
-	f, errf := file.OpenFile(database)
-	defer f.File.Close()
+	ok, err := mem.MemtableStartUp()
 
-	if errf != nil {
-		panic(errf)
+	if !ok {
+		log.Fatal(err.Error())
+		os.Exit(1)
 	}
 
-	fmt.Println("Database", database, "opened successfully")
-	willContinue := true
-
-	for willContinue {
-		fmt.Println("Enter an operation: PUT, DELETE, GET")
-
-		var operation string
-		_, err := fmt.Scan(&operation)
-
-		if err != nil {
-			break
-		}
-
-		if operation == "PUT" {
-			fmt.Println("Enter a key")
-			var key string
-			fmt.Scan(&key)
-			fmt.Println("Enter the data that you want to save")
-			var payload string
-			fmt.Scan(&payload)
-
-			numAdded, _ := f.PutContents(key, payload, "PUT")
-
-			if numAdded > -1 {
-				fmt.Println("Was able to successfully add the key/value pair into the database")
-			} else {
-				fmt.Println("Was not able to successfully add the key/value pair into the database")
-			}
-
-		}
-		if operation == "DELETE" {
-			fmt.Println("Enter a key")
-			var key string
-			fmt.Scan(&key)
-
-			numAdded, _ := f.PutContents(key, "", "DELETE")
-
-			if numAdded > -1 {
-				fmt.Println("Was able to successfully delete the key/value pair into the database")
-			} else {
-				fmt.Println("Was not able to successfully delete the key/value pair into the database")
-			}
-
-		}
-		if operation == "GET" {
-			fmt.Println("Enter a key")
-			var key string
-			fmt.Scan(&key)
-
-			deleted, payload, timestamp, err := f.GetContents(key)
-
-			if err != nil {
-				fmt.Println("Was able not able to retrieve the file contents for", key)
-			} else {
-				fmt.Printf("For key %v:\nThe payload: %v\nDeleted: %v\nThe timestamp: %v\n", key, payload, deleted, timestamp)
-			}
-
-		}
-		operation = ""
-
-		fmt.Println("Do you want to continue?(Y/N)")
-		var choice string
-		fmt.Scan(&choice)
-
-		if choice == "N" || choice == "n" {
-			break
-		}
-
+	server := &network.Server{
+		Memtable: mem,
+		DataDir:  dataDir,
 	}
 
+	port := 5773
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	var opts []grpc.ServerOption
+
+	grpcServer := grpc.NewServer(opts...)
+	//network.pb.RegisterDataServer(grpcServer, newServer())
+	network.RegisterDataServer(grpcServer, server)
+	reflection.Register(grpcServer)
+	err = grpcServer.Serve(lis)
+
+	if err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+
+	fmt.Printf("logging in port: %d", port)
 }

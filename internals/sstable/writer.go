@@ -1,0 +1,345 @@
+package sstable
+
+import (
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/ccoveille/go-safecast/v2"
+)
+
+type file_buckets float64
+
+const (
+	COMPACTION_SIZE              = 4
+	INDEX_BLOCK                  = 20
+	SMALL           file_buckets = 0.5
+	MEDIUM          file_buckets = 1.0
+	LARGE           file_buckets = 1.5
+	OVERSIZE        file_buckets = 2.0
+)
+
+// TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
+func WriteToFile(list [][]byte, filePath string) (bool, error) {
+	filename := ""
+	files, err := os.ReadDir(filePath)
+
+	if err != nil {
+		return false, err
+	}
+
+	if len(files) < 1 {
+		filename = "kd_1.sst"
+	} else {
+		maxIndex := 0
+		for _, f := range files {
+			str := strings.Split(f.Name(), "_")[1]
+			str = strings.Split(str, ".")[0]
+			idx, err := strconv.Atoi(str)
+			if err == nil && idx > maxIndex {
+				maxIndex = idx
+			}
+		}
+		filename = "kd_" + strconv.Itoa(maxIndex+1) + ".sst"
+	}
+
+	// #nosec G304 -- Creating SSTables enumerated from the internal storage directory.
+	file, err := os.Create(filepath.Join(filePath, filename))
+
+	if err != nil {
+		return false, err
+	}
+
+	defer file.Close()
+
+	offset := fileOffset(list)
+	index := createIndexBlock(list, offset)
+	footer, err := createFooter(list)
+
+	if err != nil {
+		return false, err
+	}
+
+	list = append(list, index)
+	list = append(list, footer)
+
+	content := slices.Concat(list...)
+
+	_, err = file.Write(content)
+
+	if err != nil {
+		return false, err
+	}
+
+	if err := file.Sync(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+//Create the indexing block for the file
+/*
+	The indexing block is responsible for allowing us to perform reads much more efficiently.
+
+	How is it done:
+	The skiplist would be called to write into the file after 3200 entries are filled.
+	When this is done, we can categorize the file into 20 sections of 160 elements.
+
+	In the indexing block, each entry would represent a specific block.
+	The entry will contain the key and the byte offset of the lowest key value in the block.
+	So it would look like this for example
+	keyA=0,keyB=202,keyC=403, etc.
+
+	Since all of the records in the file are organized in sorted order, we can use the block to traverse through the file much quicker
+
+	For example, if we have a key called N, we would start by comparing the key of the 20th block,
+	if the key is greater than or equal to the key N we would start from the byte offset of that block,
+	else we keep on going backwards by 1 block until we find a block where the key is greater than or equal to the block.
+
+	Only issue with this method. In the case where the key is not located in the file, we would still need to do this traversal,
+	Solution using bloom filters.
+
+	Format:
+	Size of index block: uint64
+	Each entry will follow like this:
+	KeySize: uint32 bytes long;
+	Key: n bytes long (string) (n for keysize)
+	Byte offset: uint64
+*/
+
+func createIndexBlock(contentList [][]byte, offset []uint64) []byte {
+	index := make([]byte, 0, INDEX_BLOCK*160)
+
+	//I made this specific change for the index block since in the
+	if len(contentList) < INDEX_BLOCK*160 {
+		contents := record.GetContents(contentList[len(contentList)/2])
+
+		index = binary.BigEndian.AppendUint32(index, contents.Keysize)
+
+		index = append(index, contents.Key...)
+
+		index = binary.BigEndian.AppendUint64(index, offset[len(offset)/2])
+	} else {
+		for i := 0; i < len(contentList); i = i + (len(contentList) / INDEX_BLOCK) {
+			contents := record.GetContents(contentList[i])
+
+			index = binary.BigEndian.AppendUint32(index, contents.Keysize)
+
+			index = append(index, contents.Key...)
+
+			index = binary.BigEndian.AppendUint64(index, offset[i])
+		}
+	}
+
+	//var size uint64 = uint64(len(index))
+	//index = append(binary.BigEndian.AppendUint64([]byte{}, size), index...)
+
+	return index
+}
+
+func fileOffset(contentList [][]byte) []uint64 {
+	var offsetTracker uint64 = 0
+	offset := make([]uint64, len(contentList))
+
+	for i, v := range contentList {
+		recordsize := len(v)
+
+		offset[i] = offsetTracker
+
+		offsetTracker += uint64(recordsize)
+	}
+
+	return offset
+}
+
+func createFooter(list [][]byte) ([]byte, error) {
+	if len(list) <= 0 {
+		return nil, errors.New("not able to create the footer because the record list is too small")
+	}
+	footer := make([]byte, 0, 24)
+	footer = binary.BigEndian.AppendUint64(footer, 0)
+	var size uint64
+
+	for _, rec := range list {
+		size += uint64(len(rec))
+	}
+	footer = binary.BigEndian.AppendUint64(footer, size)
+	footer = binary.BigEndian.AppendUint64(footer, uint64(0xDEADBEEFDEADBEEF))
+
+	return footer, nil
+}
+
+// We are going to be doing size based compaction for compacting these files
+// The amount of files that need to be a similar size
+// TODO: Need to make the bucket map into a persistent map that is used throughout the entire state of the
+// program.w
+func buckets(filePath string) (map[file_buckets][]fs.FileInfo, error) {
+	files, err := os.ReadDir(filePath)
+
+	if err != nil {
+		return nil, err
+	}
+	var average_size int64
+	var total_size int64
+
+	buckets := make(map[file_buckets][]fs.FileInfo)
+	//
+	//
+
+	buckets[SMALL] = make([]fs.FileInfo, 0)
+	buckets[MEDIUM] = make([]fs.FileInfo, 0)
+	buckets[LARGE] = make([]fs.FileInfo, 0)
+	buckets[OVERSIZE] = make([]fs.FileInfo, 0)
+
+	for _, file := range files {
+
+		fileInfo, err := file.Info()
+
+		if err != nil {
+			continue
+		}
+
+		total_size += fileInfo.Size()
+	}
+
+	average_size = total_size / int64(len(files))
+
+	for _, file := range files {
+		fileInfo, _ := file.Info()
+		size := fileInfo.Size()
+
+		switch {
+		case float64(size) >= float64(average_size)*float64(OVERSIZE):
+			buckets[OVERSIZE] = append(buckets[OVERSIZE], fileInfo)
+		case float64(size) >= float64(average_size)*float64(LARGE):
+			buckets[LARGE] = append(buckets[LARGE], fileInfo)
+		case float64(size) >= float64(average_size)*float64(MEDIUM):
+			buckets[MEDIUM] = append(buckets[MEDIUM], fileInfo)
+		default:
+			buckets[SMALL] = append(buckets[SMALL], fileInfo)
+		}
+	}
+
+	return buckets, nil
+}
+
+// When we are doing the concurrency option. Compaction and the buckets will be done in a separate class,
+// and in it's own separate thread that will be run periodically every time interval that we decide
+func Compact(filePath string) error {
+	bucketMap, err := buckets(filePath)
+
+	if err != nil {
+		return err
+	}
+	minThreshold := 4
+	maxThreshold := 32
+
+	//Slight potential optimization: We can have this continue compacting each bucket of similar sizes,
+	// but we have to recalculate the average file size and bucket arrangement for Each of the files
+	for _, val := range bucketMap {
+		bucketSize := len(val)
+
+		if bucketSize >= minThreshold && bucketSize <= maxThreshold {
+			skiplist := MergeList()
+			for _, fileInfo := range val {
+				// #nosec G304 -- Reading SSTables discovered via os.ReadDir from the internal storage directory.
+				fileData, err := os.ReadFile(filepath.Join(filePath, fileInfo.Name()))
+
+				if err != nil {
+					return err
+				}
+				//We do this so that we only take into account the file block, and not the index or footer
+				footer := fileData[len(fileData)-24:]
+				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
+
+					if err := os.Remove(filepath.Join(filePath, fileInfo.Name())); err != nil {
+						return fmt.Errorf("warning: failed to remove corrupt SSTable %s: %v",
+							fileInfo.Name(), err)
+					}
+					return fmt.Errorf("invalid footer magic")
+				}
+				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])
+
+				//We are going through each file and from there we will save each key/value pair record into a skiplist
+				for i := uint64(0); i < fileBlockEnds; {
+					time := fileData[i : i+8]
+
+					checksum := binary.BigEndian.Uint32(fileData[i+8 : i+12])
+
+					keySize := int(binary.BigEndian.Uint32(fileData[i+13 : i+17]))
+					payloadSize := int(binary.BigEndian.Uint32(fileData[i+17 : i+21]))
+					keySizeUi64, err := safecast.Convert[uint64](keySize)
+
+					if err != nil {
+						return err
+					}
+
+					payloadSizeUi64, err := safecast.Convert[uint64](payloadSize)
+
+					if err != nil {
+						return err
+					}
+
+					key := fileData[i+21 : i+keySizeUi64+21]
+					payload := fileData[i+keySizeUi64+21 : i+(keySizeUi64+21)+payloadSizeUi64]
+
+					//If the checksum is invalid, we ignore the rest of the file
+					if !record.ChecksumChecker(key, payload, binary.BigEndian.Uint64(time), checksum) {
+						break
+					}
+
+					skiplist.Insert(string(key), fileData[i:i+(keySizeUi64+21)+payloadSizeUi64])
+					i = i + (keySizeUi64 + 21) + payloadSizeUi64
+
+				}
+			}
+
+			//We take the entire skiplist and write it into a new file
+			fileContents := skiplist.EntireList()
+
+			//Technically speaking we can just recall the write to file again to make the new file
+			// Since the Entire write operation is there.
+			// So I'm planning on calling the Compact function after the write to file function goes through in the Memtable class
+			_, err := WriteToFile(fileContents, filePath)
+
+			if err != nil {
+				return err
+			}
+
+			// Delete all of the old files once the new file is committed
+			for _, fileInfo := range val {
+				err := os.Remove(filepath.Join(filePath, fileInfo.Name()))
+
+				if err != nil {
+					return err
+				}
+			}
+			break
+		}
+
+	}
+
+	return nil
+}
+
+func ExportBuckets(filePath string) map[file_buckets][]fs.FileInfo {
+	result, _ := buckets(filePath)
+
+	return result
+}
+
+func ExportFooter(list [][]byte) ([]byte, error) {
+	return createFooter(list)
+}
+
+func ExportFileOffset(contentList [][]byte) []uint64 {
+	return fileOffset(contentList)
+}

@@ -4,3 +4,6 @@
 #Ignore .txt and log files since these are for testing.
 *.txt
 *.log
+*.sst
+*.wal
+
