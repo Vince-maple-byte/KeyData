@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
@@ -49,7 +50,12 @@ func main() {
 	dataDir := "./internals/data"
 	mem := memtable.CreateMemtable(walPath, dataDir)
 
-	mem.MemtableStartUp()
+	ok, err := mem.MemtableStartUp()
+
+	if !ok {
+		log.Fatal(err.Error())
+		os.Exit(1)
+	}
 
 	server := &network.Server{
 		Memtable: mem,

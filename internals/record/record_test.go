@@ -2,7 +2,6 @@ package record_test
 
 import (
 	"encoding/binary"
-	"hash/crc32"
 	"testing"
 	"time"
 
@@ -77,62 +76,32 @@ func TestRecordCheckSum(t *testing.T) {
 			key:       "a",
 			payload:   "abc",
 			operation: "PUT",
-			expected: func() uint32 {
-				data, _ := record.CreateRecord("a", "abc", "PUT")
-				f := make([]byte, 20)
-				copy(f[0:8], data[:8])
-				binary.BigEndian.PutUint32(f[8:12], uint32(len("a")))
-				binary.BigEndian.PutUint32(f[12:16], uint32(len("abc")))
-				copy(f[16:17], []byte("a"))
-				copy(f[17:], []byte("abc"))
-				return crc32.ChecksumIEEE(f)
-			}(),
 		},
 		{
 			testName:  "Test 2",
 			key:       "a",
 			payload:   "",
 			operation: "DELETE",
-			expected: func() uint32 {
-				data, _ := record.CreateRecord("a", "", "PUT")
-				f := make([]byte, 17)
-				copy(f[0:8], data[:8])
-				binary.BigEndian.PutUint32(f[8:12], uint32(len("a")))
-				binary.BigEndian.PutUint32(f[12:16], uint32(len("")))
-				copy(f[16:17], []byte("a"))
-				copy(f[17:], []byte(""))
-				return crc32.ChecksumIEEE(f)
-			}(),
 		},
 		{
 			testName:  "Test 3",
 			key:       "a",
 			payload:   "a",
 			operation: "PUT",
-			expected: func() uint32 {
-				data, _ := record.CreateRecord("a", "a", "PUT")
-				f := make([]byte, 18)
-				copy(f[0:8], data[:8])
-				binary.BigEndian.PutUint32(f[8:12], uint32(len("a")))
-				binary.BigEndian.PutUint32(f[12:16], uint32(len("a")))
-				copy(f[16:17], []byte("a"))
-				copy(f[17:], []byte("a"))
-				return crc32.ChecksumIEEE(f)
-			}(),
 		},
 	}
 
 	for _, test := range tests {
-		record, err := record.CreateRecord(test.key, test.payload, test.operation)
+		entry, err := record.CreateRecord(test.key, test.payload, test.operation)
 
 		if err != nil {
 			t.Errorf("Unable to create the record")
 		}
 
-		//var parseTime time.Time;
-		checksum := binary.BigEndian.Uint32(record[8:12])
+		checksum := binary.BigEndian.Uint32(entry[8:12])
+		parseTime := binary.BigEndian.Uint64(entry[:8])
 
-		if checksum != test.expected {
+		if !record.ChecksumChecker([]byte(test.key), []byte(test.payload), parseTime, checksum) {
 			t.Errorf("incorrect checksum for %v:\nExpected checksum %v\nActual checksum %v", test.testName, test.expected, checksum)
 		}
 	}

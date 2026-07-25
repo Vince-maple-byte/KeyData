@@ -41,9 +41,9 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	footer := make([]byte, 24)
 
 	_, err = file.ReadAt(footer, fileInfo.Size()-24)
-	
+
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	//Checking the magic number first
 	if binary.BigEndian.Uint64(footer[16:]) != uint64(0xDEADBEEFDEADBEEF) {
@@ -58,24 +58,24 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 	for i := indexBlockLoc; i <= uint64(fileInfo.Size()-24); {
 		keySize := make([]byte, 4)
-		_,err := file.ReadAt(keySize, int64(i))
-		
+		_, err := file.ReadAt(keySize, int64(i))
+
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 
 		offsetKey := make([]byte, int64(binary.BigEndian.Uint32(keySize)))
 		_, err = file.ReadAt(offsetKey, int64(i)+4)
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 
 		//This gives us the location of the offset where it is saved in the data portion of the file
 		offsetLoc := make([]byte, 8)
-		_,err = file.ReadAt(offsetLoc, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
+		_, err = file.ReadAt(offsetLoc, int64(i+4+uint64(binary.BigEndian.Uint32(keySize))))
 
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 
 		keyOffset := binary.BigEndian.Uint64(offsetLoc)
@@ -88,7 +88,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 			_, err := file.ReadAt(curr, int64(keyOffset))
 
 			if err != nil {
-				return nil, err;
+				return nil, err
 			}
 
 			payloadSize := binary.BigEndian.Uint32(curr[17:21])
@@ -97,13 +97,13 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 			keyOffsetConv, err := safecast.Convert[int64](keyOffset)
 
 			if err != nil {
-				return nil, err;
+				return nil, err
 			}
 
-			_,err = file.ReadAt(entireRecord, keyOffsetConv)
-			
+			_, err = file.ReadAt(entireRecord, keyOffsetConv)
+
 			if err != nil {
-				return nil, err;
+				return nil, err
 			}
 
 			return entireRecord, nil
@@ -126,20 +126,27 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 	for i := lowKeyOffset; i < highKeyOffset; {
 		curr := make([]byte, 21)
-		_,err := file.ReadAt(curr, int64(i))
+		convertI, err := safecast.Convert[int64](i)
 
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
-		
+
+		_, err = file.ReadAt(curr, convertI)
+
+		if err != nil {
+			return nil, err
+		}
+
 		keySize := binary.BigEndian.Uint32(curr[13:17])
 		payloadSize := binary.BigEndian.Uint32(curr[17:21])
 
 		entireRecord := make([]byte, 21+keySize+payloadSize)
-		_,err = file.ReadAt(entireRecord, int64(i))
+
+		_, err = file.ReadAt(entireRecord, convertI)
 
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 
 		currRecord := record.GetContents(entireRecord)
