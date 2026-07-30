@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/Vince-maple-byte/KeyData/internals/skiplist"
 	"github.com/ccoveille/go-safecast/v2"
 )
 
@@ -248,7 +249,7 @@ func Compact(filePath string) error {
 		bucketSize := len(val)
 
 		if bucketSize >= minThreshold && bucketSize <= maxThreshold {
-			skiplist := MergeList()
+			skiplist := skiplist.CreateSkiplist()
 			for _, fileInfo := range val {
 				// #nosec G304 -- Reading SSTables discovered via os.ReadDir from the internal storage directory.
 				fileData, err := os.ReadFile(filepath.Join(filePath, fileInfo.Name()))

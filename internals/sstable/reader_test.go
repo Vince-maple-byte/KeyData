@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/Vince-maple-byte/KeyData/internals/skiplist"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
@@ -22,7 +22,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_size_1",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 3200 {
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
 					d.Insert(strconv.Itoa(i), r)
@@ -36,7 +36,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_size_2",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 3200 {
 
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
@@ -50,7 +50,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_size_3",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 3200 {
 
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
@@ -64,7 +64,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_size_4",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 3200 {
 
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
@@ -78,7 +78,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_is_a_direct_match_to_the_index",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 3200 {
 
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
@@ -92,7 +92,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_if_file_truncated",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 240 {
 
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
@@ -106,7 +106,7 @@ func TestReadFile(t *testing.T) {
 		{
 			testName: "key_if_larger_than_normal",
 			data: func() [][]byte {
-				d := memtable.CreateSkiplist()
+				d := skiplist.CreateSkiplist()
 				for i := range 7000 {
 
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
@@ -154,7 +154,7 @@ func TestReadFromAllFiles(t *testing.T) {
 	dir := t.TempDir()
 	fmt.Println("File Directory:", dir)
 	for i := range 10 {
-		d := memtable.CreateSkiplist()
+		d := skiplist.CreateSkiplist()
 		for i := range 3000 * (i + 1) {
 
 			r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")

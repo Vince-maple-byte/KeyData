@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
@@ -406,10 +405,6 @@ func TestCompact_IgnoresFileWithTruncatedRecord(t *testing.T) {
 
 func TestCompact_FileWithSwappedMagic(t *testing.T) {
 	dir := t.TempDir()
-
-	sstable.MergeList = func() sstable.ListMerger {
-		return memtable.CreateSkiplist()
-	}
 
 	writeSST := func(name, key, val string, corruptMagic bool) {
 		rec := buildValidRecord(key, val, 1)

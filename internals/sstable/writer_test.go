@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
@@ -101,12 +100,6 @@ func TestBucketsForFiles(t *testing.T) {
 func TestCompactFiles(t *testing.T) {
 	data := []string{"data", "data", "data", "data", "data", "data", "data", "data", "data", "data"}
 
-	//startUp(data...)
-
-	sstable.MergeList = func() sstable.ListMerger {
-		return memtable.CreateSkiplist()
-	}
-
 	dir := t.TempDir()
 
 	//size := 0
@@ -165,7 +158,7 @@ func TestWriteToFile(t *testing.T) {
 		t.Errorf("Not able to create the file")
 	}
 
-	file,err  := os.Open(filepath.Join(dir, "kd_1.sst"))
+	file, err := os.Open(filepath.Join(dir, "kd_1.sst"))
 
 	if err != nil {
 		t.Fatalf("not able to open the file: %v", err)
@@ -177,7 +170,6 @@ func TestWriteToFile(t *testing.T) {
 		t.Error("Did not populate file")
 	}
 
-	
 }
 
 func TestFooter(t *testing.T) {
@@ -196,7 +188,7 @@ func TestFooter(t *testing.T) {
 	}
 
 	file, err := os.Open(filepath.Join(dir, "kd_1.sst"))
-	
+
 	if err != nil {
 		t.Fatal(err.Error())
 	}
