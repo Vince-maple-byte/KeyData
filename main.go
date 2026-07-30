@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/Vince-maple-byte/KeyData/internals/memtable"
-	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 	"github.com/Vince-maple-byte/KeyData/network"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -42,9 +41,6 @@ TODO: Fix the filePath for the project so that it doesn't have to be hardcoded.
 
 func main() {
 	//We need to use this interface here to avoid an import cycle between sstable and memtable
-	sstable.MergeList = func() sstable.ListMerger {
-		return memtable.CreateSkiplist()
-	}
 
 	walPath := "./internals/wal/mem1.wal"
 	dataDir := "./internals/data"

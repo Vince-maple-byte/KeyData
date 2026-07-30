@@ -1,4 +1,4 @@
-package memtable
+package skiplist
 
 import (
 	"errors"
@@ -9,15 +9,9 @@ import (
 
 const MAX_LEVEL = 32
 
-type Node struct {
-	key    string
-	value  []byte
-	levels []*Node
-}
-
 type Skiplist struct {
 	head *Node
-	size int
+	size uint64
 }
 
 func CreateSkiplist() *Skiplist {
@@ -30,6 +24,14 @@ func CreateSkiplist() *Skiplist {
 		head: head,
 		size: 0,
 	}
+}
+
+func (list Skiplist) GetSize() uint64 {
+	return list.size
+}
+
+func (list Skiplist) GetHead() *Node {
+	return list.head
 }
 
 func (list *Skiplist) Search(key string) ([]byte, error) {
