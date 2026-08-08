@@ -90,11 +90,10 @@ func TestReadFile(t *testing.T) {
 			expected: "1141",
 		},
 		{
-			testName: "key_if_file_truncated",
+			testName: "key_if_file_smaller_than_normal",
 			data: func() [][]byte {
 				d := skiplist.CreateSkiplist()
 				for i := range 240 {
-
 					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
 					d.Insert(strconv.Itoa(i), r)
 				}
@@ -104,7 +103,7 @@ func TestReadFile(t *testing.T) {
 			expected: "105",
 		},
 		{
-			testName: "key_if_larger_than_normal",
+			testName: "key_if_file_larger_than_normal",
 			data: func() [][]byte {
 				d := skiplist.CreateSkiplist()
 				for i := range 7000 {
@@ -122,18 +121,20 @@ func TestReadFile(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
 			dir := t.TempDir()
-			_, err := sstable.WriteToFile(test.data, dir)
+			file, err := sstable.WriteToFile(test.data, dir)
 
 			if err != nil {
 				t.Fatalf("Error in writing the file: %s", err.Error())
 			}
+
+			defer file.Close()
+
 			fileInfo, err := os.Lstat(filepath.Join(dir, "kd_1.sst"))
 			size := fileInfo.Size()
 			if err != nil {
-				tearDown("../test")
 				t.Fatalf("Error in accessing the file stats: %s", err.Error())
 			}
-			rec, err := sstable.ReadFromFile(filepath.Join(dir, "kd_1.sst"), test.key)
+			rec, err := sstable.ReadFromFile(test.key, file)
 
 			if rec == nil || err != nil {
 				t.Fatalf("Error received: %v\nSize of the file: %d", err.Error(), size)
@@ -149,10 +150,62 @@ func TestReadFile(t *testing.T) {
 	}
 }
 
+func TestReadFromFileIfKeyIsNotValid(t *testing.T) {
+	tests := []struct {
+		testName string
+		data     [][]byte
+		key      string
+		expected string
+	}{
+		{
+			testName: "key_size_4_not",
+			data: func() [][]byte {
+				d := skiplist.CreateSkiplist()
+				for i := range 3200 {
+
+					r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
+					d.Insert(strconv.Itoa(i), r)
+				}
+				return d.EntireList()
+			}(),
+			key:      "3888888",
+			expected: "3888889",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			dir := t.TempDir()
+			file, err := sstable.WriteToFile(test.data, dir)
+
+			if err != nil {
+				t.Fatalf("Error in writing the file: %s", err.Error())
+			}
+
+			defer file.Close()
+
+			fileInfo, err := os.Lstat(filepath.Join(dir, "kd_1.sst"))
+			size := fileInfo.Size()
+			if err != nil {
+				t.Fatalf("Error in accessing the file stats: %s", err.Error())
+			}
+			_, err = sstable.ReadFromFile(test.key, file)
+
+			if err == nil {
+				t.Fatalf("Expecting an error\nSize of the file: %d", size)
+			}
+
+			fmt.Println(err.Error())
+			//tearDown("../test")
+		})
+	}
+}
+
 func TestReadFromAllFiles(t *testing.T) {
 
 	dir := t.TempDir()
 	fmt.Println("File Directory:", dir)
+	files := make([]*sstable.SSTFile, 0, 10)
 	for i := range 10 {
 		d := skiplist.CreateSkiplist()
 		for i := range 3000 * (i + 1) {
@@ -160,14 +213,17 @@ func TestReadFromAllFiles(t *testing.T) {
 			r, _ := record.CreateRecord(strconv.Itoa(i), strconv.Itoa(i+1), "PUT")
 			d.Insert(strconv.Itoa(i), r)
 		}
-		_, err := sstable.WriteToFile(d.EntireList(), dir)
+		file, err := sstable.WriteToFile(d.EntireList(), dir)
+		defer file.Close()
 
 		if err != nil {
 			t.Fatalf("Error in writing the file: %s", err.Error())
 		}
+
+		files = append(files, file)
 	}
 
-	_, err := sstable.ReadFromAllFiles("29994", dir)
+	_, err := sstable.ReadFromAllFiles("29994", files)
 
 	if err != nil {
 		t.Errorf("Was not able to find the valid record\n%v", err)

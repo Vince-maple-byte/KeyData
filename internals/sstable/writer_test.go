@@ -11,25 +11,25 @@ import (
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
-func startUp(filePath string, data ...string) (int, error) {
+func startUp(filePath string, data ...string) ([]*sstable.SSTFile, error) {
 
-	size := 0
+	files := make([]*sstable.SSTFile, 0)
 	for range 10 {
 		file := make([][]byte, 0, 10)
 		for i := range 10 {
 			w, _ := record.CreateRecord(data[i], data[i], "PUT")
 			file = append(file, w)
 		}
-		_, err := sstable.WriteToFile(file, filePath)
+		sst, err := sstable.WriteToFile(file, filePath)
 
 		if err != nil {
-			return 0, err
+			return files, err
 		}
-		size++
+		files = append(files, sst)
 
 	}
 
-	return size, nil
+	return files, nil
 }
 
 func tearDown(filePath string) {
@@ -69,14 +69,19 @@ func TestBucketsForFiles(t *testing.T) {
 
 	for _, test := range tests {
 		filePath := t.TempDir()
-		totalSize, err := startUp(filePath, test.data...)
+		files, err := startUp(filePath, test.data...)
 
-		if err != nil || totalSize == 0 {
+		if err != nil || len(files) == 0 {
 			t.Fatalf("Could not start up the test")
 		}
 
-		buckets := sstable.ExportBuckets(filePath)
-		average := totalSize / 10
+		buckets, err := sstable.ExportBuckets(files)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		average := len(files) / 10
 
 		for key, bucket := range buckets {
 
@@ -84,17 +89,19 @@ func TestBucketsForFiles(t *testing.T) {
 				t.Logf("This bucket %v is %d length\n", key, len(bucket))
 
 				for _, item := range bucket {
-					if float64(item.Size()) < float64(average)*float64(key) {
+					if float64(item.Size) < float64(average)*float64(key) {
 						t.Errorf("For test:%s\nThis file should not be in this bucket:%v\nFile name:%s\tFile size:%d",
 							test.testName,
-							key, item.Name(), item.Size())
+							key, item.FileName, item.Size)
 					}
 				}
 			}
 		}
-	}
 
-	//tearDown("../test")
+		for _, file := range files {
+			file.File.Close()
+		}
+	}
 }
 
 func TestCompactFiles(t *testing.T) {
@@ -103,40 +110,32 @@ func TestCompactFiles(t *testing.T) {
 	dir := t.TempDir()
 
 	//size := 0
-	for range 10 {
-		file := make([][]byte, 0, 10)
-		for i := range 10 {
-			w, _ := record.CreateRecord(data[i], data[i], "PUT")
-			file = append(file, w)
-		}
+	files, err := startUp(dir, data...)
 
-		_, err := sstable.WriteToFile(file, dir)
-
-		t.Logf("Size: %d", len(file))
-
-		if err != nil || len(file) == 0 {
-			t.Fatalf("Not to able properly make the file: size=%d", len(file))
-		}
-
+	if err != nil {
+		t.Fatalf("Not able to be create the SST Files for the test\n%v", err)
 	}
 
-	err := sstable.Compact(dir)
+	files, err = sstable.Compact(files, dir)
+
+	fmt.Println(len(files))
+	for _, file := range files {
+		file.File.Close()
+	}
 
 	if err != nil {
 		t.Errorf("Not able to complete the compaction\n Recieved this error code:\n%v", err)
 	}
 
-	files, err := os.ReadDir(dir)
+	dirFiles, err := os.ReadDir(dir)
 
 	if err != nil {
 		t.Fatalf("Not able to access the directory for testing: %v", dir)
 	}
 
-	if len(files) != 1 {
+	if len(dirFiles) != 1 {
 		t.Errorf("Improper amount of files inside of the test directory:\nExpected: %d; Actual:%d", 1, len(files))
 	}
-
-	//tearDown("../test")
 }
 
 func TestWriteToFile(t *testing.T) {
@@ -148,13 +147,14 @@ func TestWriteToFile(t *testing.T) {
 		fileContents = append(fileContents, r)
 	}
 
-	ok, err := sstable.WriteToFile(fileContents, dir)
+	sstFile, err := sstable.WriteToFile(fileContents, dir)
+	sstFile.File.Close()
 
 	if err != nil {
 		t.Errorf("Error encountered: %v\n", err)
 	}
 
-	if !ok {
+	if sstFile == nil {
 		t.Errorf("Not able to create the file")
 	}
 
@@ -163,6 +163,7 @@ func TestWriteToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("not able to open the file: %v", err)
 	}
+
 	defer file.Close()
 	info, _ := file.Stat()
 
@@ -181,8 +182,8 @@ func TestFooter(t *testing.T) {
 		fileContents = append(fileContents, c)
 	}
 
-	_, err := sstable.WriteToFile(fileContents, dir)
-
+	sstFile, err := sstable.WriteToFile(fileContents, dir)
+	sstFile.File.Close()
 	if err != nil {
 		t.Fatal(err.Error())
 	}

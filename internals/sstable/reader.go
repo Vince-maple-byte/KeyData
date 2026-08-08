@@ -3,21 +3,10 @@ package sstable
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
 	"github.com/ccoveille/go-safecast/v2"
 )
-
-type SSTFile struct {
-	Generation int
-	FileName   string
-}
 
 // How to read from the file.
 // We first checking the magic number inside of the footer to see if the file is valid
@@ -28,20 +17,11 @@ type SSTFile struct {
 // if it is equal than we can just return that key/value pair inside of the file at that byte offset
 // If the key is not inside of the range in which we stated before, than we can just return nil and an error message
 // stating that the key can't be found
-func ReadFromFile(filePath, key string) ([]byte, error) {
-	// #nosec G304
-	file, err := os.Open(filePath)
+func ReadFromFile(key string, file *SSTFile) ([]byte, error) {
 
-	if err != nil {
-		return nil, err
-	}
-
-	defer file.Close()
-
-	fileInfo, _ := file.Stat()
 	footer := make([]byte, 24)
 
-	_, err = file.ReadAt(footer, fileInfo.Size()-24)
+	_, err := file.File.ReadAt(footer, file.Size-24)
 
 	if err != nil {
 		return nil, err
@@ -53,102 +33,28 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	}
 
 	//Getting the index block offset
-	indexBlockLoc := binary.BigEndian.Uint64(footer[8:16])
-	lowKeyOffset := uint64(0)
-	highKeyOffset := uint64(0)
-	fileSize64, err := safecast.Convert[uint64](fileInfo.Size())
+	startOffset := uint64(0)
+	endOffset := uint64(0)
 
-	if err != nil {
-		return nil, err
-	}
+	for i := 0; i < len(file.Index); i++ {
 
-	for i := indexBlockLoc; i <= fileSize64-24; {
-		i64, err := safecast.Convert[int64](i)
-		if err != nil {
-			return nil, err
-		}
-		keySize := make([]byte, 4)
-		_, err = file.ReadAt(keySize, i64)
-		keySize32 := binary.BigEndian.Uint32(keySize)
+		indexKey := file.Index[i].Key
+		keyOffset := file.Index[i].Offset
 
-		if err != nil {
-			return nil, err
+		if i < len(file.Index)-1 {
+			endOffset = file.Index[i+1].Offset
+		} else {
+			endOffset = file.Footer.IndexOffset
 		}
 
-		offsetKey := make([]byte, keySize32)
-
-		_, err = file.ReadAt(offsetKey, i64+4)
-		if err != nil {
-			return nil, err
-		}
-
-		//This gives us the location of the offset where it is saved in the data portion of the file
-		offsetLoc := make([]byte, 8)
-		keySize64, err := safecast.Convert[int64](keySize32)
-
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = file.ReadAt(offsetLoc, i64+4+keySize64)
-
-		if err != nil {
-			return nil, err
-		}
-
-		keyOffset := binary.BigEndian.Uint64(offsetLoc)
-
-		//Go to the next location in the index block
-		i = i + 4 + uint64(binary.BigEndian.Uint32(keySize)) + 8
-
-		if key == string(offsetKey) {
-			curr := make([]byte, 21)
-			keyOffsetI64, err := safecast.Convert[int64](keyOffset)
-
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = file.ReadAt(curr, keyOffsetI64)
-
-			if err != nil {
-				return nil, err
-			}
-
-			payloadSize := binary.BigEndian.Uint32(curr[17:21])
-
-			entireRecord := make([]byte, 21+binary.BigEndian.Uint32(keySize)+payloadSize)
-			keyOffsetConv, err := safecast.Convert[int64](keyOffset)
-
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = file.ReadAt(entireRecord, keyOffsetConv)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return entireRecord, nil
-		}
-
-		lowKeyOffset = highKeyOffset
-		highKeyOffset = keyOffset
-
-		if key < string(offsetKey) {
+		if key <= string(indexKey) {
 			break
 		}
 
+		startOffset = keyOffset
 	}
 
-	if lowKeyOffset == highKeyOffset {
-		return nil, errors.New("key is not inside of the file: Key is larger than any key in the file")
-	}
-
-	//TODO: Make the range to
-
-	for i := lowKeyOffset; i < highKeyOffset; {
+	for i := startOffset; i <= endOffset; {
 		curr := make([]byte, 21)
 		convertI, err := safecast.Convert[int64](i)
 
@@ -156,7 +62,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 			return nil, err
 		}
 
-		_, err = file.ReadAt(curr, convertI)
+		_, err = file.File.ReadAt(curr, convertI)
 
 		if err != nil {
 			return nil, err
@@ -167,7 +73,7 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 
 		entireRecord := make([]byte, 21+keySize+payloadSize)
 
-		_, err = file.ReadAt(entireRecord, convertI)
+		_, err = file.File.ReadAt(entireRecord, convertI)
 
 		if err != nil {
 			return nil, err
@@ -192,9 +98,9 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 			return entireRecord, nil
 		}
 
-		if currRecord.Key > key {
-			break
-		}
+		// if currRecord.Key > key {
+		// 	break
+		// }
 
 		i += 21 + uint64(keySize) + uint64(payloadSize)
 	}
@@ -202,37 +108,19 @@ func ReadFromFile(filePath, key string) ([]byte, error) {
 	return nil, errors.New("key could not be found")
 }
 
-func ReadFromAllFiles(key string, dir string) ([]byte, error) {
-	fileDir, err := os.ReadDir(dir)
+// We have to fix the ReadFromAllFiles to use the []SSTFile struct instead dir string
+func ReadFromAllFiles(key string, files []*SSTFile) ([]byte, error) {
 
-	var files []SSTFile
-
-	if err != nil {
-		return nil, err
-	}
-
-	for _, file := range fileDir {
-		gen, err := parseGeneration(filepath.Join(dir, file.Name()))
-
-		if err != nil {
-			continue
-		}
-
-		files = append(files, SSTFile{
-			Generation: gen,
-			FileName:   file.Name(),
-		})
-	}
-
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Generation > files[j].Generation
-	})
+	//By default we are going to assume that the SSTFiles are going to be sorted since the new files
+	// always get written in the back
+	// sort.Slice(files, func(i, j int) bool {
+	// 	return files[i].Generation > files[j].Generation
+	// })
 
 	var currContent record.Content
 	var result []byte
 	for _, file := range files {
-		fmt.Println(file.FileName)
-		res, err := ReadFromFile(filepath.Join(dir, file.FileName), key)
+		res, err := ReadFromFile(key, file)
 
 		if err == nil {
 			contents := record.GetContents(res)
@@ -255,12 +143,4 @@ func ReadFromAllFiles(key string, dir string) ([]byte, error) {
 	} else {
 		return nil, errors.New("the key does not exist in any of the files")
 	}
-}
-
-func parseGeneration(fileName string) (int, error) {
-	str := strings.Split(fileName, "_")[1]
-	str = strings.Split(str, ".")[0]
-	idx, err := strconv.Atoi(str)
-
-	return idx, err
 }

@@ -48,18 +48,14 @@ func (m *Memtable) Write(key, value, operation string) (bool, error) {
 
 	if m.size >= MAX_SIZE {
 		content := m.list.EntireList()
-		_, errF := sstable.WriteToFile(content, m.DataDir)
-
-		if errF != nil {
-			return false, errF
-		}
-
-		//For now, when running test we just
-		err = sstable.Compact(m.DataDir)
+		_, err := sstable.WriteToFile(content, m.DataDir)
 
 		if err != nil {
 			return false, err
 		}
+
+		//For now, when running test we just
+		//err = sstable.Compact(m.DataDir)
 
 		m.list.EmptyList()
 		m.size = 0
@@ -68,6 +64,7 @@ func (m *Memtable) Write(key, value, operation string) (bool, error) {
 			return false, err
 		}
 
+		return true, fmt.Errorf("Need to compact the files")
 	}
 
 	return true, nil
