@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -125,7 +126,9 @@ func (s *SSTFile) Delete() error {
 }
 
 func (s *SSTFile) ParseGeneration() (int, error) {
-	str := strings.Split(s.FileName, "_")[1]
+	filename := filepath.Base(s.FileName)
+
+	str := strings.Split(filename, "_")[1]
 	str = strings.Split(str, ".")[0]
 	idx, err := strconv.Atoi(str)
 	//s.Generation = idx

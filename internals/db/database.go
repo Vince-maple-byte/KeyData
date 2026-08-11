@@ -95,7 +95,7 @@ func (db *Database) Close() error {
 }
 
 func (db *Database) CreateMemtable() {
-	db.Memtable = memtable.CreateMemtable(db.Dir, db.WalPath)
+	db.Memtable = memtable.CreateMemtable(db.WalPath, db.Dir)
 }
 
 func (db *Database) Get(key string) ([]byte, error) {
@@ -118,10 +118,14 @@ func (db *Database) Get(key string) ([]byte, error) {
 }
 
 func (db *Database) Put(key, val string) (bool, error) {
-	ok, err := db.Memtable.Write(key, val, "PUT")
+	ok, sstfile, err := db.Memtable.Write(key, val, "PUT")
 
 	if !ok {
 		return ok, err
+	}
+
+	if sstfile != nil {
+		db.SSTFiles = append(db.SSTFiles, sstfile)
 	}
 
 	if err == nil {
@@ -130,19 +134,29 @@ func (db *Database) Put(key, val string) (bool, error) {
 
 	compactErr := fmt.Errorf("Need to compact the files")
 
-	if errors.Is(err, compactErr) {
-		sstable.Compact(db.SSTFiles, db.Dir)
-		return true, nil
+	if err.Error() == compactErr.Error() {
+		newFiles, errF := sstable.Compact(db.SSTFiles, db.Dir)
+
+		if errF != nil {
+			return false, errF
+		}
+
+		db.SSTFiles = newFiles
+		return true, errF
 	}
 
 	return ok, err
 }
 
 func (db *Database) Delete(key string) (bool, error) {
-	ok, err := db.Memtable.Write(key, "", "DELETE")
+	ok, sstfile, err := db.Memtable.Write(key, "", "DELETE")
 
 	if !ok {
 		return ok, err
+	}
+
+	if sstfile != nil {
+		db.SSTFiles = append(db.SSTFiles, sstfile)
 	}
 
 	if err == nil {

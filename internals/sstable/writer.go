@@ -49,7 +49,6 @@ func WriteToFile(list [][]byte, filePath string) (*SSTFile, error) {
 	}
 
 	sstFile := &SSTFile{}
-	sstFile.Generation = maxIndex + 1
 	// #nosec G304 -- Creating SSTables enumerated from the internal storage directory.
 	err = sstFile.Open(filepath.Join(filePath, filename))
 
