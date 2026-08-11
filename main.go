@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/Vince-maple-byte/KeyData/internals/memtable"
+	database "github.com/Vince-maple-byte/KeyData/internals/db"
 	"github.com/Vince-maple-byte/KeyData/network"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -44,18 +44,15 @@ func main() {
 
 	walPath := "./internals/wal/mem1.wal"
 	dataDir := "./internals/data"
-	mem := memtable.CreateMemtable(walPath, dataDir)
+	db, err := database.CreateDatabase(dataDir, walPath)
 
-	ok, err := mem.MemtableStartUp()
-
-	if !ok {
+	if err != nil {
 		log.Fatal(err.Error())
 		os.Exit(1)
 	}
 
 	server := &network.Server{
-		Memtable: mem,
-		DataDir:  dataDir,
+		Database: db,
 	}
 
 	port := 5773
