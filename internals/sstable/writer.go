@@ -3,8 +3,6 @@ package sstable
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -26,19 +24,19 @@ const (
 	OVERSIZE        file_buckets = 2.0
 )
 
-// TODO:Finish with the write method for the file i/o; use the diagram that I made as a guide.
-func WriteToFile(list [][]byte, filePath string) (bool, error) {
+// TODO: Change WriteToFile to be SSTFile struct complient
+func WriteToFile(list [][]byte, filePath string) (*SSTFile, error) {
 	filename := ""
 	files, err := os.ReadDir(filePath)
 
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
+	maxIndex := 0
 	if len(files) < 1 {
 		filename = "kd_1.sst"
 	} else {
-		maxIndex := 0
 		for _, f := range files {
 			str := strings.Split(f.Name(), "_")[1]
 			str = strings.Split(str, ".")[0]
@@ -50,21 +48,20 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 		filename = "kd_" + strconv.Itoa(maxIndex+1) + ".sst"
 	}
 
+	sstFile := &SSTFile{}
 	// #nosec G304 -- Creating SSTables enumerated from the internal storage directory.
-	file, err := os.Create(filepath.Join(filePath, filename))
+	err = sstFile.Open(filepath.Join(filePath, filename))
 
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	defer file.Close()
 
 	offset := fileOffset(list)
 	index := createIndexBlock(list, offset)
 	footer, err := createFooter(list)
 
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	list = append(list, index)
@@ -72,17 +69,28 @@ func WriteToFile(list [][]byte, filePath string) (bool, error) {
 
 	content := slices.Concat(list...)
 
-	_, err = file.Write(content)
+	sstFile.PopulateIndex(index)
+	sstFile.Size, err = safecast.Convert[int64](len(content))
+	if err != nil {
+		return nil, err
+	}
+	indexOffset, err := safecast.Convert[uint64](sstFile.Size - int64(len(index)+len(footer)))
+	sstFile.Footer = &Footer{
+		Magic:       uint64(0xDEADBEEFDEADBEEF),
+		IndexOffset: indexOffset,
+	}
+
+	_, err = sstFile.File.Write(content)
 
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	if err := file.Sync(); err != nil {
-		return false, err
+	if err := sstFile.File.Sync(); err != nil {
+		return nil, err
 	}
 
-	return true, nil
+	return sstFile, nil
 }
 
 //Create the indexing block for the file
@@ -120,13 +128,13 @@ func createIndexBlock(contentList [][]byte, offset []uint64) []byte {
 
 	//I made this specific change for the index block since in the
 	if len(contentList) < INDEX_BLOCK*160 {
-		contents := record.GetContents(contentList[len(contentList)/2])
+		contents := record.GetContents(contentList[0])
 
 		index = binary.BigEndian.AppendUint32(index, contents.Keysize)
 
 		index = append(index, contents.Key...)
 
-		index = binary.BigEndian.AppendUint64(index, offset[len(offset)/2])
+		index = binary.BigEndian.AppendUint64(index, offset[0])
 	} else {
 		for i := 0; i < len(contentList); i = i + (len(contentList) / INDEX_BLOCK) {
 			contents := record.GetContents(contentList[i])
@@ -175,165 +183,6 @@ func createFooter(list [][]byte) ([]byte, error) {
 	footer = binary.BigEndian.AppendUint64(footer, uint64(0xDEADBEEFDEADBEEF))
 
 	return footer, nil
-}
-
-// We are going to be doing size based compaction for compacting these files
-// The amount of files that need to be a similar size
-// TODO: Need to make the bucket map into a persistent map that is used throughout the entire state of the
-// program.w
-func buckets(filePath string) (map[file_buckets][]fs.FileInfo, error) {
-	files, err := os.ReadDir(filePath)
-
-	if err != nil {
-		return nil, err
-	}
-	var average_size int64
-	var total_size int64
-
-	buckets := make(map[file_buckets][]fs.FileInfo)
-	//
-	//
-
-	buckets[SMALL] = make([]fs.FileInfo, 0)
-	buckets[MEDIUM] = make([]fs.FileInfo, 0)
-	buckets[LARGE] = make([]fs.FileInfo, 0)
-	buckets[OVERSIZE] = make([]fs.FileInfo, 0)
-
-	for _, file := range files {
-
-		fileInfo, err := file.Info()
-
-		if err != nil {
-			continue
-		}
-
-		total_size += fileInfo.Size()
-	}
-
-	average_size = total_size / int64(len(files))
-
-	for _, file := range files {
-		fileInfo, _ := file.Info()
-		size := fileInfo.Size()
-
-		switch {
-		case float64(size) >= float64(average_size)*float64(OVERSIZE):
-			buckets[OVERSIZE] = append(buckets[OVERSIZE], fileInfo)
-		case float64(size) >= float64(average_size)*float64(LARGE):
-			buckets[LARGE] = append(buckets[LARGE], fileInfo)
-		case float64(size) >= float64(average_size)*float64(MEDIUM):
-			buckets[MEDIUM] = append(buckets[MEDIUM], fileInfo)
-		default:
-			buckets[SMALL] = append(buckets[SMALL], fileInfo)
-		}
-	}
-
-	return buckets, nil
-}
-
-// When we are doing the concurrency option. Compaction and the buckets will be done in a separate class,
-// and in it's own separate thread that will be run periodically every time interval that we decide
-func Compact(filePath string) error {
-	bucketMap, err := buckets(filePath)
-
-	if err != nil {
-		return err
-	}
-	minThreshold := 4
-	maxThreshold := 32
-
-	//Slight potential optimization: We can have this continue compacting each bucket of similar sizes,
-	// but we have to recalculate the average file size and bucket arrangement for Each of the files
-	for _, val := range bucketMap {
-		bucketSize := len(val)
-
-		if bucketSize >= minThreshold && bucketSize <= maxThreshold {
-			skiplist := MergeList()
-			for _, fileInfo := range val {
-				// #nosec G304 -- Reading SSTables discovered via os.ReadDir from the internal storage directory.
-				fileData, err := os.ReadFile(filepath.Join(filePath, fileInfo.Name()))
-
-				if err != nil {
-					return err
-				}
-				//We do this so that we only take into account the file block, and not the index or footer
-				footer := fileData[len(fileData)-24:]
-				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
-
-					if err := os.Remove(filepath.Join(filePath, fileInfo.Name())); err != nil {
-						return fmt.Errorf("warning: failed to remove corrupt SSTable %s: %v",
-							fileInfo.Name(), err)
-					}
-					return fmt.Errorf("invalid footer magic")
-				}
-				fileBlockEnds := binary.BigEndian.Uint64(footer[8:16])
-
-				//We are going through each file and from there we will save each key/value pair record into a skiplist
-				for i := uint64(0); i < fileBlockEnds; {
-					time := fileData[i : i+8]
-
-					checksum := binary.BigEndian.Uint32(fileData[i+8 : i+12])
-
-					keySize := int(binary.BigEndian.Uint32(fileData[i+13 : i+17]))
-					payloadSize := int(binary.BigEndian.Uint32(fileData[i+17 : i+21]))
-					keySizeUi64, err := safecast.Convert[uint64](keySize)
-
-					if err != nil {
-						return err
-					}
-
-					payloadSizeUi64, err := safecast.Convert[uint64](payloadSize)
-
-					if err != nil {
-						return err
-					}
-
-					key := fileData[i+21 : i+keySizeUi64+21]
-					payload := fileData[i+keySizeUi64+21 : i+(keySizeUi64+21)+payloadSizeUi64]
-
-					//If the checksum is invalid, we ignore the rest of the file
-					if !record.ChecksumChecker(key, payload, binary.BigEndian.Uint64(time), checksum) {
-						break
-					}
-
-					skiplist.Insert(string(key), fileData[i:i+(keySizeUi64+21)+payloadSizeUi64])
-					i = i + (keySizeUi64 + 21) + payloadSizeUi64
-
-				}
-			}
-
-			//We take the entire skiplist and write it into a new file
-			fileContents := skiplist.EntireList()
-
-			//Technically speaking we can just recall the write to file again to make the new file
-			// Since the Entire write operation is there.
-			// So I'm planning on calling the Compact function after the write to file function goes through in the Memtable class
-			_, err := WriteToFile(fileContents, filePath)
-
-			if err != nil {
-				return err
-			}
-
-			// Delete all of the old files once the new file is committed
-			for _, fileInfo := range val {
-				err := os.Remove(filepath.Join(filePath, fileInfo.Name()))
-
-				if err != nil {
-					return err
-				}
-			}
-			break
-		}
-
-	}
-
-	return nil
-}
-
-func ExportBuckets(filePath string) map[file_buckets][]fs.FileInfo {
-	result, _ := buckets(filePath)
-
-	return result
 }
 
 func ExportFooter(list [][]byte) ([]byte, error) {

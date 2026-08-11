@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
-	"github.com/Vince-maple-byte/KeyData/internals/memtable"
 	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 )
 
@@ -378,55 +378,129 @@ func TestFileOffset_EmptyList(t *testing.T) {
 func TestCompact_IgnoresFileWithTruncatedRecord(t *testing.T) {
 	dir := t.TempDir()
 
-	// Write 4 files so Compact's minThreshold (4) is met.
-	// Three are valid; one has its record body truncated.
-	writeValidSST := func(name, key, val string) {
-		rec := buildValidRecord(key, val, 1)
-		footer := buildValidFooter(uint64(len(rec)))
-		data := buildSSTFile([][]byte{rec}, []byte{}, footer)
-		os.WriteFile(filepath.Join(dir, name), data, 0644)
+	sstFiles := make([]*sstable.SSTFile, 0, 4)
+
+	// Create three valid SSTables using the real writer.
+	keys := []string{"apple", "banana", "cherry"}
+
+	for _, key := range keys {
+		rec := buildValidRecord(key, "value", 1)
+
+		sst, err := sstable.WriteToFile([][]byte{rec}, dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		sstFiles = append(sstFiles, sst)
 	}
 
-	writeValidSST("kd_1.sst", "apple", "pie")
-	writeValidSST("kd_2.sst", "banana", "split")
-	writeValidSST("kd_3.sst", "cherry", "jam")
-
-	// Fourth file: valid header, truncated body.
+	// Create one corrupted SSTable manually.
 	rec := buildValidRecord("date", "fruit", 1)
 	truncated := rec[:len(rec)-3]
-	footer := buildValidFooter(uint64(len(truncated)))
-	corrupt := buildSSTFile([][]byte{truncated}, []byte{}, footer)
-	os.WriteFile(filepath.Join(dir, "kd_4.sst"), corrupt, 0644)
 
-	// Compact should not panic; corruption causes the inner loop to break early.
-	err := sstable.Compact(dir)
-	// We accept either nil or an error — the key requirement is no panic / index OOB.
+	footer := buildValidFooter(uint64(len(truncated)))
+	data := buildSSTFile([][]byte{truncated}, nil, footer)
+
+	corruptPath := filepath.Join(dir, "kd_999.sst")
+	if err := os.WriteFile(corruptPath, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	corrupt := &sstable.SSTFile{}
+	if err := corrupt.Open(corruptPath); err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := corrupt.File.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	corrupt.Size = info.Size()
+
+	if err = corrupt.PopulateFooter(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The corrupted file has no valid index block.
+	corrupt.Index = nil
+
+	sstFiles = append(sstFiles, corrupt)
+
+	defer func() {
+		for _, s := range sstFiles {
+			s.Close()
+		}
+	}()
+
+	_, err = sstable.Compact(sstFiles, dir)
+
+	// The important property is that Compact doesn't panic.
 	t.Logf("Compact returned: %v", err)
 }
 
 func TestCompact_FileWithSwappedMagic(t *testing.T) {
 	dir := t.TempDir()
 
-	sstable.MergeList = func() sstable.ListMerger {
-		return memtable.CreateSkiplist()
-	}
+	sstFiles := make([]*sstable.SSTFile, 0, 4)
 
-	writeSST := func(name, key, val string, corruptMagic bool) {
-		rec := buildValidRecord(key, val, 1)
-		footer := buildValidFooter(uint64(len(rec)))
-		if corruptMagic {
-			// Swap the last two bytes of the magic number.
-			footer[22], footer[23] = footer[23], footer[22]
+	// Create three valid SSTables.
+	keys := []string{"alpha", "beta", "gamma"}
+
+	for i, key := range keys {
+		rec := buildValidRecord(key, strconv.Itoa(i+1), 1)
+
+		sst, err := sstable.WriteToFile([][]byte{rec}, dir)
+		if err != nil {
+			t.Fatal(err)
 		}
-		data := buildSSTFile([][]byte{rec}, []byte{}, footer)
-		os.WriteFile(filepath.Join(dir, name), data, 0644)
+
+		sstFiles = append(sstFiles, sst)
 	}
 
-	writeSST("kd_1.sst", "alpha", "1", false)
-	writeSST("kd_2.sst", "beta", "2", false)
-	writeSST("kd_3.sst", "gamma", "3", false)
-	writeSST("kd_4.sst", "delta", "4", true) // corrupted magic
+	// Create one SSTable with a corrupted footer magic.
+	rec := buildValidRecord("delta", "4", 1)
+	footer := buildValidFooter(uint64(len(rec)))
 
-	err := sstable.Compact(dir)
+	// Corrupt the magic number.
+	footer[22], footer[23] = footer[23], footer[22]
+
+	data := buildSSTFile([][]byte{rec}, nil, footer)
+
+	corruptPath := filepath.Join(dir, "kd_999.sst")
+	if err := os.WriteFile(corruptPath, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	corrupt := &sstable.SSTFile{}
+	if err := corrupt.Open(corruptPath); err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := corrupt.File.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	corrupt.Size = info.Size()
+
+	if err := corrupt.PopulateFooter(); err != nil {
+		t.Fatal(err)
+	}
+
+	// No valid index block.
+	corrupt.Index = nil
+
+	sstFiles = append(sstFiles, corrupt)
+
+	defer func() {
+		for _, s := range sstFiles {
+			s.Close()
+		}
+	}()
+
+	_, err = sstable.Compact(sstFiles, dir)
+
+	// We only care that Compact detects the corruption and doesn't panic.
 	t.Logf("Compact with swapped magic returned: %v", err)
 }
