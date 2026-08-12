@@ -35,7 +35,7 @@ type SSTFile struct {
 
 func (s *SSTFile) Open(filepath string) error {
 	if s.File != nil {
-		return fmt.Errorf("File is already open")
+		return fmt.Errorf("file is already open")
 	}
 
 	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)

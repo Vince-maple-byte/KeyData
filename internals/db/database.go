@@ -114,7 +114,7 @@ func (db *Database) Get(key string) ([]byte, error) {
 		return res, nil
 	}
 
-	return nil, fmt.Errorf("Not able to find key/value pair for %s", key)
+	return nil, fmt.Errorf("not able to find key/value pair for %s", key)
 }
 
 func (db *Database) Put(key, val string) (bool, error) {
@@ -132,7 +132,7 @@ func (db *Database) Put(key, val string) (bool, error) {
 		return true, err
 	}
 
-	compactErr := fmt.Errorf("Need to compact the files")
+	compactErr := fmt.Errorf("need to compact the files")
 
 	if err.Error() == compactErr.Error() {
 		newFiles, errF := sstable.Compact(db.SSTFiles, db.Dir)
@@ -163,7 +163,7 @@ func (db *Database) Delete(key string) (bool, error) {
 		return true, err
 	}
 
-	compactErr := fmt.Errorf("Need to compact the files")
+	compactErr := fmt.Errorf("need to compact the files")
 
 	if errors.Is(err, compactErr) {
 		sstable.Compact(db.SSTFiles, db.Dir)

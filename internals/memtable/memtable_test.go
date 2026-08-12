@@ -144,11 +144,11 @@ func TestWrite_FlushResetsState(t *testing.T) {
 		}
 		if sstfile != nil {
 			if err := sstfile.Close(); err != nil {
-				t.Fatalf("Unable to close the SSTable file:%v", err)
+				t.Fatalf("unable to close the SSTable file:%v", err)
 			}
 
 			if sstfile.FileName == "" {
-				t.Errorf("Unable to create a valid SSTable file")
+				t.Errorf("unable to create a valid SSTable file")
 			}
 		}
 	}
@@ -172,7 +172,7 @@ func TestMemtableStartUp(t *testing.T) {
 	ok, _, err := mt.Write("key", "val23", "PUT")
 
 	if !ok {
-		t.Fatalf("Not able to write into the memtable, %v", err)
+		t.Fatalf("not able to write into the memtable, %v", err)
 	}
 
 	for i := range 10 {
