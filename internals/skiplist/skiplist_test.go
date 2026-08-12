@@ -1,17 +1,19 @@
-package memtable
+package skiplist_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/Vince-maple-byte/KeyData/internals/record"
+	"github.com/Vince-maple-byte/KeyData/internals/skiplist"
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 // --- helpers ---
 
-func newList(t *testing.T) *Skiplist {
+func newList(t *testing.T) *skiplist.Skiplist {
 	t.Helper()
-	return CreateSkiplist()
+	return skiplist.CreateSkiplist()
 }
 
 // --- CreateSkiplist ---
@@ -25,15 +27,16 @@ func TestCreateSkiplist_NotNil(t *testing.T) {
 
 func TestCreateSkiplist_InitialSizeZero(t *testing.T) {
 	list := newList(t)
-	if list.size != 0 {
-		t.Errorf("expected size 0, got %d", list.size)
+	if list.GetSize() != 0 {
+		t.Errorf("expected size 0, got %d", list.GetSize())
 	}
 }
 
 func TestCreateSkiplist_HeadHasMaxLevels(t *testing.T) {
 	list := newList(t)
-	if len(list.head.levels) != MAX_LEVEL {
-		t.Errorf("expected head to have %d levels, got %d", MAX_LEVEL, len(list.head.levels))
+
+	if len(list.GetHead().GetLevels()) != skiplist.MAX_LEVEL {
+		t.Errorf("expected head to have %d levels, got %d", skiplist.MAX_LEVEL, len(list.GetHead().GetLevels()))
 	}
 }
 
@@ -42,8 +45,8 @@ func TestCreateSkiplist_HeadHasMaxLevels(t *testing.T) {
 func TestInsert_SingleElement(t *testing.T) {
 	list := newList(t)
 	list.Insert("a", []byte("val-a"))
-	if list.size != 1 {
-		t.Errorf("expected size 1, got %d", list.size)
+	if list.GetSize() != 1 {
+		t.Errorf("expected size 1, got %d", list.GetSize())
 	}
 }
 
@@ -53,8 +56,14 @@ func TestInsert_MultipleElements(t *testing.T) {
 	for _, k := range keys {
 		list.Insert(k, []byte(k+"-value"))
 	}
-	if list.size != len(keys) {
-		t.Errorf("expected size %d, got %d", len(keys), list.size)
+	keysSize, err := safecast.Convert[uint64](len(keys))
+
+	if err != nil {
+		t.Fatal("Not able to get the proper size of the keys")
+	}
+
+	if list.GetSize() != keysSize {
+		t.Errorf("expected size %d, got %d", keysSize, list.GetSize())
 	}
 }
 
@@ -67,8 +76,8 @@ func TestInsert_UpdateExistingKeyForDifferentTimesItWasInserted(t *testing.T) {
 	list.Insert("key", new)
 
 	// Size should not grow on update.
-	if list.size != 1 {
-		t.Errorf("expected size 1 after update, got %d", list.size)
+	if list.GetSize() != 1 {
+		t.Errorf("expected size 1 after update, got %d", list.GetSize())
 	}
 
 	val, err := list.Search("key")
@@ -90,8 +99,8 @@ func TestInsert_UpdateExistingKeyWhenInsertedAtTheSameTime(t *testing.T) {
 	list.Insert("key", new)
 
 	// Size should not grow on update.
-	if list.size != 1 {
-		t.Errorf("expected size 1 after update, got %d", list.size)
+	if list.GetSize() != 1 {
+		t.Errorf("expected size 1 after update, got %d", list.GetSize())
 	}
 
 	val, err := list.Search("key")
@@ -137,14 +146,14 @@ func TestInsert_PreservesOrder(t *testing.T) {
 	list.Insert("b", []byte("b"))
 
 	// Level-0 linked list must be sorted.
-	curr := list.head.levels[0]
+	curr := list.GetHead().GetLevels()[0]
 	var prev string
 	for curr != nil {
-		if curr.key < prev {
-			t.Errorf("out of order: %q after %q", curr.key, prev)
+		if curr.GetKey() < prev {
+			t.Errorf("out of order: %q after %q", curr.GetKey(), prev)
 		}
-		prev = curr.key
-		curr = curr.levels[0]
+		prev = curr.GetKey()
+		curr = curr.GetLevels()[0]
 	}
 }
 
@@ -219,8 +228,8 @@ func TestDelete_DecreasesSize(t *testing.T) {
 	list.Insert("x", []byte("x"))
 	list.Insert("y", []byte("y"))
 	list.Delete("x")
-	if list.size != 1 {
-		t.Errorf("expected size 1 after delete, got %d", list.size)
+	if list.GetSize() != 1 {
+		t.Errorf("expected size 1 after delete, got %d", list.GetSize())
 	}
 }
 
@@ -294,7 +303,7 @@ func TestEmptyList_SizeAfterEmpty(t *testing.T) {
 	// NOTE: EmptyList reassigns list internally; the caller's pointer is
 	// unchanged. This test documents the current (possibly surprising)
 	// behaviour — update if the implementation is fixed.
-	size := list.size // no panic expected
+	size := list.GetSize() // no panic expected
 	if size != 0 {
 		t.Error("Expected an empty list", size)
 	}

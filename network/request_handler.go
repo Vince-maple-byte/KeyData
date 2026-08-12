@@ -2,9 +2,10 @@ package network
 
 import (
 	context "context"
+	"fmt"
 
+	database "github.com/Vince-maple-byte/KeyData/internals/db"
 	"github.com/Vince-maple-byte/KeyData/internals/record"
-	"github.com/Vince-maple-byte/KeyData/internals/sstable"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,12 +14,11 @@ import (
 type Server struct {
 	UnimplementedDataServer
 
-	Memtable InternalMemtable
-	DataDir  string
+	Database *database.Database
 }
 
 func (s *Server) Search(ctx context.Context, search *SearchRequest) (*SearchResponse, error) {
-	res, err := s.searchHelper(search.GetKey())
+	res, err := s.Database.Get(search.GetKey())
 
 	if err != nil {
 		return &SearchResponse{CreatedAt: nil, Key: "", Payload: ""}, status.Error(codes.NotFound, err.Error())
@@ -35,25 +35,22 @@ func (s *Server) Search(ctx context.Context, search *SearchRequest) (*SearchResp
 
 func (s *Server) Create(ctx context.Context, create *CreateRequest) (*CreateResponse, error) {
 	//mem := NetworkMemtable()
+	var ok bool
+	var err error
 
-	ok, err := s.Memtable.Write(create.GetKey(), create.GetPayload(), create.GetOperation())
+	switch create.GetOperation() {
+	case "PUT":
+		ok, err = s.Database.Put(create.GetKey(), create.GetPayload())
+	case "DELETE":
+		ok, err = s.Database.Delete(create.GetKey())
+	default:
+		err = fmt.Errorf("invalid operation")
+		ok = false
+	}
 
 	if !ok {
 		return &CreateResponse{Success: ok}, status.Error(codes.Unknown, err.Error())
 	}
 
 	return &CreateResponse{Success: ok}, nil
-}
-
-func (s Server) searchHelper(key string) ([]byte, error) {
-	//mem := NetworkMemtable()
-
-	res, err := s.Memtable.Get(key)
-
-	//Got to figure out how to pass in the filePath for the directory while it still being reusable
-	if err != nil {
-		return sstable.ReadFromAllFiles(key, s.DataDir)
-	}
-
-	return res, err
 }
