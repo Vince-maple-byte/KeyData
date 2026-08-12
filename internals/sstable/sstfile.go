@@ -39,7 +39,7 @@ func (s *SSTFile) Open(filepath string) error {
 	}
 
 	s.FileName = filepath
-	file, err := os.OpenFile(s.FileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	file, err := os.OpenFile(s.FileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0600)
 
 	if err != nil {
 		return err
