@@ -54,12 +54,12 @@ func TestDatabaseCorrectNumberOfSSTFiles(t *testing.T) {
 	store := filepath.Join(temp, "store")
 	wal := filepath.Join(temp, "wal")
 
-	err := os.Mkdir(store, 0600)
+	err := os.Mkdir(store, 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = os.Mkdir(wal, 0600)
+	err = os.Mkdir(wal, 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,12 +98,12 @@ func TestDatabaseAfterCompactionHappens(t *testing.T) {
 	store := filepath.Join(temp, "store")
 	wal := filepath.Join(temp, "wal")
 
-	err := os.Mkdir(store, 0600)
+	err := os.Mkdir(store, 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = os.Mkdir(wal, 0600)
+	err = os.Mkdir(wal, 0700)
 	if err != nil {
 		t.Fatal(err)
 	}
