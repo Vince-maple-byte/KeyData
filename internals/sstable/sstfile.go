@@ -38,14 +38,14 @@ func (s *SSTFile) Open(filepath string) error {
 		return fmt.Errorf("file is already open")
 	}
 
-	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	s.FileName = filepath
+	file, err := os.OpenFile(s.FileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 
 	if err != nil {
 		return err
 	}
 
 	s.File = file
-	s.FileName = filepath
 	s.Generation, err = s.ParseGeneration()
 
 	if err != nil {
@@ -70,6 +70,11 @@ func (s *SSTFile) PopulateIndex(blocks []byte) {
 	indexBlocks := make([]*IndexBlock, 0)
 
 	for i := 0; i < len(blocks); {
+		iU32, err := safecast.Convert[uint32](i)
+
+		if err != nil {
+			return 
+		}
 		keySize := binary.BigEndian.Uint32(blocks[i : i+4])
 
 		keySizeInt, err := safecast.Convert[int](keySize)
@@ -81,9 +86,9 @@ func (s *SSTFile) PopulateIndex(blocks []byte) {
 			break
 		}
 
-		indexKey := string(blocks[i+4 : uint32(i+4)+keySize])
+		indexKey := string(blocks[i+4 : iU32+4+keySize])
 
-		keyOffset := binary.BigEndian.Uint64(blocks[uint32(i+4)+keySize : uint32(i+12)+keySize])
+		keyOffset := binary.BigEndian.Uint64(blocks[iU32+4+keySize : iU32+12+keySize])
 		//fmt.Println(keyOffset)
 		index := &IndexBlock{
 			Key:    indexKey,

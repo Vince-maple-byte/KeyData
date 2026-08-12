@@ -32,15 +32,6 @@ func startUp(filePath string, data ...string) ([]*sstable.SSTFile, error) {
 	return files, nil
 }
 
-func tearDown(filePath string) {
-	files, _ := os.ReadDir(filePath)
-
-	for _, file := range files {
-		os.Remove(filepath.Join(filePath, file.Name()))
-
-	}
-}
-
 func TestBucketsForFiles(t *testing.T) {
 	tests := []struct {
 		testName string
@@ -148,16 +139,12 @@ func TestWriteToFile(t *testing.T) {
 	}
 
 	sstFile, err := sstable.WriteToFile(fileContents, dir)
-	sstFile.File.Close()
 
 	if err != nil {
-		t.Errorf("Error encountered: %v\n", err)
+		t.Fatalf("Error encountered: %v\n", err)
 	}
 
-	if sstFile == nil {
-		t.Errorf("Not able to create the file")
-	}
-
+	sstFile.File.Close()
 	file, err := os.Open(filepath.Join(dir, "kd_1.sst"))
 
 	if err != nil {

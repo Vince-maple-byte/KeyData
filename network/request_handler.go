@@ -44,7 +44,7 @@ func (s *Server) Create(ctx context.Context, create *CreateRequest) (*CreateResp
 	case "DELETE":
 		ok, err = s.Database.Delete(create.GetKey())
 	default:
-		err = fmt.Errorf("Invalid operation")
+		err = fmt.Errorf("invalid operation")
 		ok = false
 	}
 

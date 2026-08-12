@@ -166,7 +166,14 @@ func (db *Database) Delete(key string) (bool, error) {
 	compactErr := fmt.Errorf("need to compact the files")
 
 	if errors.Is(err, compactErr) {
-		sstable.Compact(db.SSTFiles, db.Dir)
+		newFiles, err := sstable.Compact(db.SSTFiles, db.Dir)
+
+		if err != nil {
+			return false, err;
+		}
+
+		db.SSTFiles = newFiles;
+
 		return true, nil
 	}
 

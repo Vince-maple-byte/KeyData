@@ -13,18 +13,8 @@ import (
 	"github.com/ccoveille/go-safecast/v2"
 )
 
-type file_buckets float64
 
-const (
-	COMPACTION_SIZE              = 4
-	INDEX_BLOCK                  = 20
-	SMALL           file_buckets = 0.5
-	MEDIUM          file_buckets = 1.0
-	LARGE           file_buckets = 1.5
-	OVERSIZE        file_buckets = 2.0
-)
 
-// TODO: Change WriteToFile to be SSTFile struct complient
 func WriteToFile(list [][]byte, filePath string) (*SSTFile, error) {
 	filename := ""
 	files, err := os.ReadDir(filePath)
@@ -75,6 +65,11 @@ func WriteToFile(list [][]byte, filePath string) (*SSTFile, error) {
 		return nil, err
 	}
 	indexOffset, err := safecast.Convert[uint64](sstFile.Size - int64(len(index)+len(footer)))
+
+	if err != nil {
+		return nil, err;
+	}
+	
 	sstFile.Footer = &Footer{
 		Magic:       uint64(0xDEADBEEFDEADBEEF),
 		IndexOffset: indexOffset,

@@ -214,12 +214,12 @@ func TestReadFromAllFiles(t *testing.T) {
 			d.Insert(strconv.Itoa(i), r)
 		}
 		file, err := sstable.WriteToFile(d.EntireList(), dir)
-		defer file.Close()
 
 		if err != nil {
 			t.Fatalf("Error in writing the file: %s", err.Error())
 		}
 
+		defer file.Close()
 		files = append(files, file)
 	}
 

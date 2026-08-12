@@ -11,7 +11,16 @@ import (
 )
 
 //Change these methods to be SSTFile complient
+type file_buckets float64
 
+const (
+	COMPACTION_SIZE              = 4
+	INDEX_BLOCK                  = 20
+	SMALL           file_buckets = 0.5
+	MEDIUM          file_buckets = 1.0
+	LARGE           file_buckets = 1.5
+	OVERSIZE        file_buckets = 2.0
+)
 // We are going to be doing size based compaction for compacting these files
 // The amount of files that need to be a similar size
 // TODO: Need to make the bucket map into a persistent map that is used throughout the entire state of the
@@ -82,7 +91,10 @@ func Compact(files []*SSTFile, dir string) ([]*SSTFile, error) {
 				}
 				//We do this so that we only take into account the file block, and not the index or footer
 				if binary.BigEndian.Uint64(footer[16:]) != 0xDEADBEEFDEADBEEF {
-					file.Close()
+					if err := file.Close(); err != nil {
+						return files, fmt.Errorf("warning: not able to close the file %s: %v",
+						file.FileName, err)	
+					}
 					if err := os.Remove(file.FileName); err != nil {
 						return files, fmt.Errorf("warning: failed to remove corrupt SSTable %s: %v",
 							file.FileName, err)
