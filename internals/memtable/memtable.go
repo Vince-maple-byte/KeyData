@@ -64,7 +64,7 @@ func (m *Memtable) Write(key, value, operation string) (bool, *sstable.SSTFile, 
 		m.list.EmptyList()
 		m.Size = 0
 
-		return true, sstfile, fmt.Errorf("Need to compact the files")
+		return true, sstfile, fmt.Errorf("need to compact the files")
 	}
 
 	return true, nil, nil
@@ -80,7 +80,7 @@ func (m *Memtable) Get(key string) ([]byte, error) {
 	content := record.GetContents(records)
 
 	if content.Tombstone != 0 {
-		return nil, errors.New("Key/Value pair doesn't exist")
+		return nil, errors.New("key/value pair doesn't exist")
 	}
 
 	return records, nil
@@ -90,7 +90,7 @@ func (m Memtable) writeToWal(record []byte) (bool, error) {
 	file, err := os.OpenFile(m.WalFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 
 	if err != nil {
-		errMessage := fmt.Sprintf("Not able to create/open the wal file %s\n%s", m.WalFilePath, err.Error())
+		errMessage := fmt.Sprintf("not able to create/open the wal file %s\n%s", m.WalFilePath, err.Error())
 		return false, errors.New(errMessage)
 	}
 
