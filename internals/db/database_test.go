@@ -54,12 +54,12 @@ func TestDatabaseCorrectNumberOfSSTFiles(t *testing.T) {
 	store := filepath.Join(temp, "store")
 	wal := filepath.Join(temp, "wal")
 
-	err := os.Mkdir(store, 0700)
+	err := os.Mkdir(store, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = os.Mkdir(wal, 0700)
+	err = os.Mkdir(wal, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,12 +98,12 @@ func TestDatabaseAfterCompactionHappens(t *testing.T) {
 	store := filepath.Join(temp, "store")
 	wal := filepath.Join(temp, "wal")
 
-	err := os.Mkdir(store, 0700)
+	err := os.Mkdir(store, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = os.Mkdir(wal, 0700)
+	err = os.Mkdir(wal, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,11 +129,11 @@ func TestDatabaseAfterCompactionHappens(t *testing.T) {
 	dir, err := os.ReadDir(store)
 
 	if err != nil {
-		t.Fatalf("Not able to read into the directory\n%v", err)
+		t.Fatalf("not able to read into the directory\n%v", err)
 	}
 
 	if len(db.SSTFiles) != 1 {
-		t.Errorf("The length of the database struct: %d, does not match the length of the actual amount of file stored in the directory: %d", len(db.SSTFiles), len(dir))
+		t.Errorf("the length of the database struct: %d, does not match the length of the actual amount of file stored in the directory: %d", len(db.SSTFiles), len(dir))
 	}
 
 	for _, file := range db.SSTFiles {
